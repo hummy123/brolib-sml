@@ -33,3 +33,13 @@ fun run_txns_time title arr =
   in
     time_func title f
   end
+
+val _ =
+  let
+    val _ = run_txns_time "svelte" svelte_arr
+    val _ = run_txns_time "rust" rust_arr
+    val _ = run_txns_time "seph" seph_arr
+    val _ = run_txns_time "automerge" automerge_arr
+  in
+    ()
+  end

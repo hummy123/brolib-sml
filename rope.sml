@@ -9,6 +9,11 @@ val target_length = 1024
 val empty = N0 ""
 fun of_string string = N0 string
 
+exception Size
+exception Ins
+exception Substring
+exception Delete
+
 fun size rope = 
    case rope of
    N0 s => String.size s
@@ -22,11 +27,11 @@ fun size rope =
       in
         t1_size + t2_size + t3_size
       end
-    | _ => raise Empty
+  | _ => raise Size
 
 fun root rope =
   case rope of
-  L2(s1, s2) => N2(N0 s1, String.size s1, String.size s2, N0 s2)
+    L2(s1, s2) => N2(N0 s1, String.size s1, String.size s2, N0 s2)
   | N3(t1, t2, t3) =>
     let
       val t1_size = size t1
@@ -37,7 +42,7 @@ fun root rope =
     in
       N2(left, left_size, t3_size, N1 t3)
     end
-    | t => t
+  | t => t
 
 fun n1 rope = 
   case rope of
@@ -51,7 +56,7 @@ fun n1 rope =
         val left_size = t1_size + t2_size
         val t3_size = size t3
       in
-        N2(left, left_size, t3_size, t3)
+        N2(left, left_size, t3_size, N1 t3)
       end
   | t => N1 t
 
@@ -114,6 +119,19 @@ fun ins_n2_right left right =
         val right = N2(t3, size t3, size t4, t4)
       in
         N3(t1, N1 t2, right)
+      end
+  | (t1, N3(t2, t3, t4)) =>
+      let
+        val t1_size = size t1
+        val t2_size = size t2
+        val left = N2(t1, t1_size, t2_size, t2)
+        val t3_size = size t3
+        val t4_size = size t4
+        val right = N2(t3, t3_size, t4_size, t4)
+        val right_size = t3_size + t4_size
+        val left_size = t1_size + t2_size
+      in
+        N2(left, left_size, right_size, right)
       end
   | (l, r) =>
       N2(l, size l, size r, r)
@@ -178,7 +196,7 @@ fun ins cur_index string rope =
           in
             ins_n2_right l r
           end
-    | _ => raise Empty
+    | _ => raise Ins
 
 fun insert index string rope =
   let
@@ -247,7 +265,7 @@ fun sub start_idx end_idx acc rope =
               sub start_idx end_idx sub_acc l
             end
         end
-    | _ => raise Empty
+    | _ => raise Substring
 
 fun substring start length rope =
   let
@@ -346,12 +364,13 @@ fun del start_idx end_idx rope =
                 (N2(l, size l, size r, r), false)
             end
         end
-    | _ => raise Empty
+    | _ => raise Delete
 
 fun delete start length rope =
   let
     val finish = start + length
-    val (t, _) = del start finish rope
+    val (t, did_ins) = del start finish rope
+    val t = if did_ins then root rope else rope
   in
     t
   end
