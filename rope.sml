@@ -13,6 +13,7 @@ exception Size
 exception Ins
 exception Substring
 exception Delete
+exception To_string
 
 fun size rope = 
    case rope of
@@ -373,4 +374,25 @@ fun delete start length rope =
     val t = if did_ins then root rope else rope
   in
     t
+  end
+
+fun to_str acc rope =
+  case rope of
+    N0 str =>
+      (str::acc)
+  | N1 t => 
+      to_str acc t
+  | N2 (l, _, _, r) =>
+      let
+        val acc = to_str acc r
+      in
+        to_str acc l
+      end
+  | _ => raise To_string
+
+fun to_string rope =
+  let
+    val lst = to_str [] rope
+  in
+    String.concat lst
   end
