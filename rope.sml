@@ -348,5 +348,10 @@ fun del start_idx end_idx rope =
         end
     | _ => raise Empty
 
-
-            
+fun delete start length rope =
+  let
+    val finish = start + length
+    val (t, _) = del start finish rope
+  in
+    t
+  end
