@@ -180,4 +180,81 @@ fun ins cur_index string rope =
           end
     | _ => raise Empty
 
+fun ins index string rope =
+  let
+    val rope = ins index string rope
+  in
+    root rope
+  end
+
+fun sub_internal start_idx end_idx acc rope =
+  case rope of
+    N0 str =>
+      let 
+        val str_size = String.size str
+        val before_start = start_idx <= 0
+        val after_start = start_idx >= 0
+        val after_end = end_idx >= str_size
+        val before_end = end_idx <= str_size
+      in
+        if before_start andalso after_end then
+          (str :: acc)
+        else if after_start andalso before_start then
+          let
+            val len = end_idx - start_idx
+            val str = String.substring(str, start_idx, len)
+          in
+            (str :: acc)
+          end
+        else if after_start andalso after_end then
+          let
+            val len = str_size - start_idx
+            val str = String.substring(str, start_idx, len)
+          in
+            (str :: acc)
+          end
+        else
+          let
+            val str = String.substring(str, 0, end_idx)
+          in
+            (str::acc)
+          end
+      end
+    | N1 t =>
+        sub_internal start_idx end_idx acc t
+    | N2(l, lm, _, r) =>
+        let
+          val starts_before = lm > start_idx
+          val ends_before = lm > end_idx
+          val starts_after = lm < start_idx
+          val ends_after = lm < end_idx
+        in
+          if starts_before andalso ends_before then
+            sub_internal start_idx end_idx acc l
+          else if starts_after andalso ends_after then
+            let
+              val next_start = start_idx - lm
+              val next_end = end_idx - lm
+            in
+              sub_internal next_start next_end acc r
+            end
+          else
+            let
+              val next_start = start_idx - lm
+              val next_end = end_idx - lm
+              val sub_acc = sub next_start next_end acc r
+            in
+              sub_internal start_idx end_idx sub_acc l
+            end
+        end
+    | _ => raise Empty
+
+fun sub start length rope =
+  let
+    val finish = start + length
+    val lst = sub_internal start finish [] rope
+  in
+    String.concat lst
+  end
+
 
