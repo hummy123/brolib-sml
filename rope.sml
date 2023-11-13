@@ -180,14 +180,14 @@ fun ins cur_index string rope =
           end
     | _ => raise Empty
 
-fun ins index string rope =
+fun insert index string rope =
   let
     val rope = ins index string rope
   in
     root rope
   end
 
-fun sub_internal start_idx end_idx acc rope =
+fun sub start_idx end_idx acc rope =
   case rope of
     N0 str =>
       let 
@@ -221,7 +221,7 @@ fun sub_internal start_idx end_idx acc rope =
           end
       end
     | N1 t =>
-        sub_internal start_idx end_idx acc t
+        sub start_idx end_idx acc t
     | N2(l, lm, _, r) =>
         let
           val starts_before = lm > start_idx
@@ -230,13 +230,13 @@ fun sub_internal start_idx end_idx acc rope =
           val ends_after = lm < end_idx
         in
           if starts_before andalso ends_before then
-            sub_internal start_idx end_idx acc l
+            sub start_idx end_idx acc l
           else if starts_after andalso ends_after then
             let
               val next_start = start_idx - lm
               val next_end = end_idx - lm
             in
-              sub_internal next_start next_end acc r
+              sub next_start next_end acc r
             end
           else
             let
@@ -244,17 +244,109 @@ fun sub_internal start_idx end_idx acc rope =
               val next_end = end_idx - lm
               val sub_acc = sub next_start next_end acc r
             in
-              sub_internal start_idx end_idx sub_acc l
+              sub start_idx end_idx sub_acc l
             end
         end
     | _ => raise Empty
 
-fun sub start length rope =
+fun substring start length rope =
   let
     val finish = start + length
-    val lst = sub_internal start finish [] rope
+    val lst = sub start finish [] rope
   in
     String.concat lst
   end
 
+fun del start_idx end_idx rope =
+  case rope of
+    N0 str =>
+        let
+          val str_size = String.size str
+          val before_start = start_idx <= 0
+          val after_end = end_idx >= str_size
+          val after_start = start_idx >= 0
+          val before_end = end_idx <= str_size
+        in
+          if before_start andalso after_end then
+            (N0 "", false)
+          else if after_start andalso before_end then
+            let
+              val str1 = String.substring(str, 0, start_idx)
+              val del_len = str_size - end_idx
+              val str2 = String.substring(str, start_idx, del_len)
+              val new_len = str_size - del_len
+            in
+              if new_len <= target_length then
+                (N0(str1 ^ str2), false)
+              else
+                (L2(str1, str2), true)
+            end
+          else if after_start andalso after_end then
+            let
+              val str = String.substring(str, 0, start_idx)
+            in
+              (N0 str, false)
+            end
+          else
+            let 
+              val len = str_size - end_idx
+              val str = String.substring(str, end_idx, len)
+            in
+              (N0 str, false)
+            end
+        end
+    | N1 t =>
+        let
+          val (t, did_ins) = del start_idx end_idx t 
+          val t = if did_ins then n1 t else t
+        in
+          (t, did_ins)
+        end
+    | N2(l, lm, rm, r) =>
+        let
+          val start_is_less = lm > start_idx
+          val end_is_less = lm > end_idx
+          val start_is_more = lm < start_idx
+          val end_is_more = lm < end_idx
+        in
+          if start_is_less andalso end_is_less then
+            let
+              val (l, did_ins) = del start_idx end_idx l
+            in
+              case did_ins of
+                false =>
+                  (N2(l, size l, rm, r), false)
+              | true =>
+                  (ins_n2_left l r, true)
+            end
+          else if start_is_more andalso end_is_more then
+            let
+              val next_start = start_idx - lm
+              val next_end = end_idx - lm
+              val (r, did_ins) = del next_start next_end r
+            in
+              case did_ins of
+                  false =>
+                    (N2(l, lm, size r, r), false)
+                | true =>
+                    (ins_n2_right l r, true)
+            end
+          else
+            let
+              val (l, did_ins_l) = del start_idx end_idx l
+              val r_start = start_idx - lm
+              val r_end = end_idx - lm
+              val (r, did_ins_r) = del r_start r_end r
+            in
+              if did_ins_l then
+                (ins_n2_left l r, true)
+              else if did_ins_r then
+                (ins_n2_right l r, true)
+              else 
+                (N2(l, size l, size r, r), false)
+            end
+        end
+    | _ => raise Empty
 
+
+            
