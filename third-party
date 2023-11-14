@@ -1,8 +1,0 @@
-All files except rope.sml (written by me) were genereated from the repository below.
-https://github.com/josephg/editing-traces/tree/master/sequential_traces
-
-The files in that repository are all licensed under CC BY 4.0, except for the Automerge edit trace which was taken from the below repository, where I do not see a license.
-https://github.com/automerge/automerge-perf/
-
-rope.sml is licensed under the Zero Clause BSD license described at the link below.
-https://landley.net/toybox/license.html
