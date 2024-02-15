@@ -4,6 +4,7 @@ signature ROPE = sig
   val of_string : string -> t
   val size : t -> int
   val insert : int * string * t -> t
+  val delete : int * int * t -> t
 end
 
 structure Rope :> ROPE = struct
@@ -28,19 +29,17 @@ structure Rope :> ROPE = struct
 
   exception AuxConstructor
 
-  local
-    fun help_size(acc, rope) =
-      case rope of
-        N0 s => 
-          acc + String.size s
-      | N1 t => 
-          help_size(acc, t)
-      | N2(_, lm, r) =>
-          help_size(acc + lm, r)
-      | _ => raise AuxConstructor
-  in
-    fun size rope = help_size(0, rope)
-  end
+  fun help_size(acc, rope) =
+    case rope of
+      N0 s => 
+        acc + String.size s
+    | N1 t => 
+        help_size(acc, t)
+    | N2(_, lm, r) =>
+        help_size(acc + lm, r)
+    | _ => raise AuxConstructor
+
+  fun size rope = help_size(0, rope)
 
   fun ins_root rope =
     case rope of
@@ -177,7 +176,6 @@ structure Rope :> ROPE = struct
     | (l, r) =>
         N2(l, size l, r)
 
-  local
     fun ins_leaf(cur_index, new_str, rope, old_str) =
       if cur_index <= 0 then
         if is_less_than_target(old_str, new_str) then
@@ -205,73 +203,154 @@ structure Rope :> ROPE = struct
           else
             (N3(N0 sub1, N0 new_str, N0 sub2), AddedNode)
         end
-    fun ins(cur_index, new_str, rope) =
-      case rope of
-        N2(l, lm, r) =>
-          if cur_index < lm then
-            let 
-              val (l, action) = ins(cur_index, new_str, l)
-            in
-              (case action of
-                NoAction => 
-                  (case (l, r) of
-                    (N0 s1, N0 s2) =>
-                      if is_less_than_target(s1, s2) then
-                        (N0 (s1 ^ s2), DeletedNode)
-                      else
-                        (N2(l, lm + String.size new_str, r), action)
-                  | _ =>
-                    (N2(l, lm + String.size new_str, r), action))
-              | AddedNode =>
-                  (ins_n2_left(l, r), action)
-              | DeletedNode =>
-                  (del_n2_left(l, r), action))
-            end
-          else
-            let
-              val (r, action) = ins(cur_index - lm, new_str, r)
-            in
-              (case action of
-                NoAction =>
-                  (case (l, r) of
-                    (N0 s1, N0 s2) =>
-                      if is_less_than_target(s1, s2) then
-                        (N0 (s1 ^ s2), DeletedNode)
-                      else
-                        (N2(l, lm, r), action)
-                    | _ =>
-                        (N2(l, lm, r), action))
-                | AddedNode =>
-                    (ins_n2_right(l, r), action)
-                | DeletedNode =>
-                    (del_n2_right(l, r), action))
-            end
-      | N1 t =>
-          let
-            val (t, action) = ins(cur_index, new_str, t)
+
+  fun ins(cur_index, new_str, rope) =
+    case rope of
+      N2(l, lm, r) =>
+        if cur_index < lm then
+          let 
+            val (l, action) = ins(cur_index, new_str, l)
           in
             (case action of
-              AddedNode =>
-                (ins_n1 t, action)
-            | _ =>
-                (N1 t, action))
+              NoAction => 
+                (case (l, r) of
+                  (N0 s1, N0 s2) =>
+                    if is_less_than_target(s1, s2) then
+                      (N0 (s1 ^ s2), DeletedNode)
+                    else
+                      (N2(l, lm + String.size new_str, r), action)
+                | _ =>
+                  (N2(l, lm + String.size new_str, r), action))
+            | AddedNode =>
+                (ins_n2_left(l, r), action)
+            | DeletedNode =>
+                (del_n2_left(l, r), action))
           end
-      | N0 old_str => 
-          ins_leaf(cur_index, new_str, rope, old_str)
-      | _ =>
-          raise AuxConstructor
-   in
-    fun insert (index, str, rope) =
+        else
+          let
+            val (r, action) = ins(cur_index - lm, new_str, r)
+          in
+            (case action of
+              NoAction =>
+                (case (l, r) of
+                  (N0 s1, N0 s2) =>
+                    if is_less_than_target(s1, s2) then
+                      (N0 (s1 ^ s2), DeletedNode)
+                    else
+                      (N2(l, lm, r), action)
+                  | _ =>
+                      (N2(l, lm, r), action))
+              | AddedNode =>
+                  (ins_n2_right(l, r), action)
+              | DeletedNode =>
+                  (del_n2_right(l, r), action))
+          end
+    | N1 t =>
+        let
+          val (t, action) = ins(cur_index, new_str, t)
+        in
+          (case action of
+            AddedNode =>
+              (ins_n1 t, action)
+          | _ =>
+              (N1 t, action))
+        end
+    | N0 old_str => 
+        ins_leaf(cur_index, new_str, rope, old_str)
+    | _ =>
+        raise AuxConstructor
+ 
+  fun insert (index, str, rope) =
+    let
+      val (rope, action) = ins(index, str, rope)
+    in
+      (case action of
+        NoAction =>
+          rope
+      | AddedNode =>
+          ins_root rope
+      | DeletedNode =>
+          del_root rope)
+    end
+
+  fun del_leaf(start_idx, end_idx, str) =
+    if start_idx <= 0 andalso end_idx >= String.size str then
+      (empty, false)
+    else if start_idx >= 0 andalso end_idx <= String.size str then
       let
-        val (rope, action) = ins(index, str, rope)
+        val sub1 = String.substring(str, 0, start_idx)
+        val sub2 = String.substring(str, end_idx, (String.size str - end_idx))
       in
-        (case action of
-          NoAction =>
-            rope
-        | AddedNode =>
-            ins_root rope
-        | DeletedNode =>
-            del_root rope)
+        if start_idx + (String.size str - end_idx) <= target_length then
+          (N0 (sub1 ^ sub2), false)
+        else
+          (L2(sub1, sub2), true)
       end
-  end
+    else if start_idx >= 0 andalso end_idx >= String.size str then
+      let
+        val str = String.substring(str, 0, start_idx)
+      in
+        (N0 str, false)
+      end
+    else
+      let
+        val str = String.substring(str, end_idx, String.size str - end_idx)
+      in
+        (N0 str, false)
+      end
+
+  fun del (start_idx, end_idx, rope) =
+    case rope of
+      N2(l, lm, r) =>
+        if lm > start_idx andalso lm > end_idx then
+          let
+            val (l, did_add) = del(start_idx, end_idx, l)
+          in
+            if did_add then 
+              (ins_n2_left(l, r), did_add)
+            else
+              (N2(l, size l, r), did_add)
+          end
+        else if lm < start_idx andalso lm < end_idx then
+          let
+            val (r, did_add) = del(start_idx - lm, end_idx - lm, r)
+          in
+            if did_add then
+              (ins_n2_right(l, r), did_add)
+            else
+              (N2(l, lm, r), did_add)
+          end
+        else
+          let
+            val (l, did_add_l) = del(start_idx, end_idx, l)
+            val (r, did_add_r) = del(start_idx - lm, end_idx - lm, r)
+          in
+            if did_add_l then
+              (ins_n2_left(l, r), did_add_l)
+            else if did_add_r then
+              (ins_n2_right(l, r), did_add_r)
+            else
+              (N2(l, size l, r), false)
+          end
+    | N1 t =>
+        let
+          val (t, did_add) = del(start_idx, end_idx, t)
+        in
+          if did_add then
+            (ins_n1 t, did_add)
+          else
+            (N1 t, did_add)
+        end
+    | N0 str =>
+        del_leaf(start_idx, end_idx, str)
+
+  fun delete(start, length, rope) =
+    let
+      val (rope, did_add) = del(start, start + length, rope)
+    in
+      if did_add then
+        ins_root rope
+      else
+        del_root rope
+    end
 end

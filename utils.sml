@@ -21,12 +21,12 @@ fun run_txns arr =
       let
         val rope = 
           if del_num > 0 
-          then delete pos del_num rope 
+          then Rope.delete(pos, del_num, rope)
           else rope
         val str_size = String.size ins_str
         val rope = 
           if str_size > 0 
-          then insert pos ins_str rope 
+          then Rope.insert(pos, ins_str, rope)
           else rope
       in
         rope
