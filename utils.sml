@@ -31,7 +31,7 @@ fun run_txns arr =
       in
         rope
       end) 
-    empty arr
+    Rope.empty arr
 
 fun run_txns_time title arr = 
   let
@@ -41,7 +41,7 @@ fun run_txns_time title arr =
   end
 
 fun run_to_string rope =
-  to_string rope
+  Rope.to_string rope
 
 fun run_to_string_time title rope =
   let
@@ -57,17 +57,17 @@ fun run_txns_1000_times (counter, arr, total) =
       val total = total div divisor
       val str = LargeInt.toString total
     in
-      print str
+      print (str ^ "\n")
     end
   else
     let
       val start_time = Time.now()
-      val start_time = Time.toMilliseconds start_time
+      val start_time = Time.toNanoseconds start_time
 
       val _ = run_txns arr
 
       val end_time = Time.now()
-      val end_time = Time.toMilliseconds end_time
+      val end_time = Time.toNanoseconds end_time
       val time_diff = end_time - start_time 
       val counter = counter + 1
       val total = time_diff + total

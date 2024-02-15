@@ -5,6 +5,7 @@ signature ROPE = sig
   val size : t -> int
   val insert : int * string * t -> t
   val delete : int * int * t -> t
+  val to_string : t -> string
 end
 
 structure Rope :> ROPE = struct
@@ -14,6 +15,32 @@ structure Rope :> ROPE = struct
     | N2 of t * int * t
     | L2 of string * string
     | N3 of t * t * t
+
+  exception AuxConstructor
+
+  exception Substring of int
+
+  fun fold_right (f, state, rope) =
+    case rope of
+      N2(l, _, r) =>
+        let
+          val state = fold_right(f, state, r)
+        in
+          fold_right(f, state, l)
+        end
+    | N1 t =>
+        fold_right(f, state, t)
+    | N0 s =>
+        f (state, s)
+    | _ =>
+        raise AuxConstructor
+
+  fun to_string rope =
+    let
+      val str_list = fold_right((fn (acc, str) => str::acc), [], rope)
+    in
+      String.concat str_list
+    end
 
   datatype balance  
     = AddedNode
@@ -26,8 +53,6 @@ structure Rope :> ROPE = struct
 
   fun is_less_than_target(str1, str2) =
     String.size str1 + String.size str2 <= target_length
-
-  exception AuxConstructor
 
   fun help_size(acc, rope) =
     case rope of
@@ -47,14 +72,12 @@ structure Rope :> ROPE = struct
         N2(N0 s1, String.size s1, N0 s2)
     | N3(t1, t2, t3) =>
         let
-          val t1_size = size t1
-          val left = N2(t1, t1_size, t2)
-          val t2_size = size t2
+          val left = N2(t1, size t1, t2)
         in
-          N2(left, t1_size + t2_size, N1 t3)
+          N2(left, size left, N1 t3)
         end
     | t =>
-        N1 t
+        t
 
   fun del_root rope =
     case rope of
@@ -69,7 +92,7 @@ structure Rope :> ROPE = struct
           let 
             val left = N2(t1, size t1, t2)
           in
-            N2(left, size left, t2)
+            N2(left, size left, N1 t3)
           end
       | t =>
           N1 t
@@ -80,18 +103,14 @@ structure Rope :> ROPE = struct
         N3(N0 s1, N0 s2, t3)
     | (N3(t1, t2, t3), N1 t4) =>
         let
-          val t1_size = size t1
-          val left = N2(t1, t1_size, t2)
-          val t3_size = size t3
-          val right = N2(t3, t3_size, t4)
-          val t2_size = size t2
-          val left_size = t1_size + t2_size
+          val left = N2(t1, size t1, t2)
+          val right = N2(t3, size t3, t4)
         in
-          N2(left, left_size, right)
+          N2(left, size left, right)
         end
     | (N3(t1, t2, t3), t4) =>
         let 
-          val left = N2(t1, size t2, t2)
+          val left = N2(t1, size t1, t2)
         in
           N3(left, N1 t3, t4)
         end
@@ -134,8 +153,7 @@ structure Rope :> ROPE = struct
     | (N1 t1, N3(t2, t3, t4)) =>
         let
           val left = N2(t1, size t1, t2)
-          val t3_size = size t3
-          val right = N2(t3, t3_size, t4)
+          val right = N2(t3, size t3, t4)
         in
           N2(left, size left, right)
         end
@@ -150,7 +168,7 @@ structure Rope :> ROPE = struct
 
   fun del_n2_right(left, right) =
     case (left, right) of
-      (N2(N1 t1, _, N2(t2, _, t3)), N1 t4) =>
+      (N2(N1 t1, _, N2(t2, _, t3)), N1 (N1 t4)) =>
         let
           val left = N2(t1, size t1, t2)
           val right = N2(t3, size t3, t4)
@@ -165,13 +183,12 @@ structure Rope :> ROPE = struct
         in
           N1 inner
         end
-    | (N2( (t1 as N2 _), _, (t2 as N2 _)), N1 (N1 t3)) =>
+    | (N2( (t1 as N2 _), _, (t2 as N2 _)), N1 (t3 as N1 _)) =>
         let
-          val left_size = size t1
           val left = N1 t1
           val right = N2(t2, size t2, t3)
         in
-          N2(left, left_size, right)
+          N2(left, size left, right)
         end
     | (l, r) =>
         N2(l, size l, r)
@@ -198,7 +215,7 @@ structure Rope :> ROPE = struct
             (N0(sub1 ^ new_str ^ sub2), NoAction)
           else if cur_index + String.size new_str <= target_length then
             (L2(sub1 ^ new_str, sub2), AddedNode)
-          else if (String.size old_str - cur_index) + String.size new_str <= target_length then
+          else if ((String.size old_str) - cur_index) + String.size new_str <= target_length then
             (L2(sub1, new_str ^ sub2), AddedNode)
           else
             (N3(N0 sub1, N0 new_str, N0 sub2), AddedNode)
@@ -281,13 +298,14 @@ structure Rope :> ROPE = struct
         val sub1 = String.substring(str, 0, start_idx)
         val sub2 = String.substring(str, end_idx, (String.size str - end_idx))
       in
-        if start_idx + (String.size str - end_idx) <= target_length then
+        if is_less_than_target(sub1, sub2) then
           (N0 (sub1 ^ sub2), false)
         else
           (L2(sub1, sub2), true)
       end
     else if start_idx >= 0 andalso end_idx >= String.size str then
       let
+        val start = Int.toString start_idx
         val str = String.substring(str, 0, start_idx)
       in
         (N0 str, false)
@@ -322,8 +340,8 @@ structure Rope :> ROPE = struct
           end
         else
           let
-            val (l, did_add_l) = del(start_idx, end_idx, l)
             val (r, did_add_r) = del(start_idx - lm, end_idx - lm, r)
+            val (l, did_add_l) = del(start_idx, end_idx, l)
           in
             if did_add_l then
               (ins_n2_left(l, r), did_add_l)
@@ -343,6 +361,8 @@ structure Rope :> ROPE = struct
         end
     | N0 str =>
         del_leaf(start_idx, end_idx, str)
+    | _ =>
+        raise AuxConstructor
 
   fun delete(start, length, rope) =
     let
