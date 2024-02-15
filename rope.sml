@@ -86,16 +86,16 @@ structure Rope :> ROPE = struct
 
   fun ins_n1 rope =
     case rope of
-        L2 (s1, s2) =>
-          N2(N0 s1, String.size s1, N0 s2)
-      | N3(t1, t2, t3) =>
-          let 
-            val left = N2(t1, size t1, t2)
-          in
-            N2(left, size left, N1 t3)
-          end
-      | t =>
-          N1 t
+      L2 (s1, s2) =>
+        N2(N0 s1, String.size s1, N0 s2)
+    | N3(t1, t2, t3) =>
+        let 
+          val left = N2(t1, size t1, t2)
+        in
+          N2(left, size left, N1 t3)
+        end
+    | t =>
+        N1 t
 
   fun ins_n2_left (left, right) =
     case (left, right) of
