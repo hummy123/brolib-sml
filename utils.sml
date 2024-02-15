@@ -50,9 +50,15 @@ fun run_to_string_time title rope =
     time_func title f
   end
 
-fun run_txns_1000_times counter arr acc =
+fun run_txns_1000_times (counter, arr, total) =
   if counter = 1000 then
-    acc
+    let
+      val divisor = Int.toLarge 1000
+      val total = total div divisor
+      val str = LargeInt.toString total
+    in
+      print str
+    end
   else
     let
       val start_time = Time.now()
@@ -63,9 +69,10 @@ fun run_txns_1000_times counter arr acc =
       val end_time = Time.now()
       val end_time = Time.toMilliseconds end_time
       val time_diff = end_time - start_time 
-      val time_diff = LargeInt.toString time_diff
+      val counter = counter + 1
+      val total = time_diff + total
     in
-      run_txns_1000_times (counter + 1) arr (time_diff::acc)
+      run_txns_1000_times (counter, arr, total)
     end
 
 fun write_file filename acc =
@@ -80,17 +87,14 @@ fun write_file filename acc =
 
 val _ =
   let
-    val svelte = run_txns_1000_times 0 svelte_arr []
-    val _ = write_file "svelte_edit_traces.csv" svelte
+    val start_time = LargeInt.fromInt 0
+    val svelte = run_txns_1000_times (999 ,svelte_arr, start_time )
 
-    val rust = run_txns_1000_times 0 rust_arr []
-    val _ = write_file "rust_edit_traces.csv" rust
+    val rust = run_txns_1000_times (999 ,rust_arr, start_time )
 
-    val seph = run_txns_1000_times 0 seph_arr []
-    val _ = write_file "seph_edit_traces.csv" seph
+    val seph = run_txns_1000_times (999, seph_arr, start_time)
 
-    val automerge = run_txns_1000_times 0 automerge_arr []
-    val _ = write_file "automerge_edit_traces.csv" automerge
+    val automerge = run_txns_1000_times (999, automerge_arr , start_time)
   in
     ()
   end
