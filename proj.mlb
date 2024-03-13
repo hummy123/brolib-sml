@@ -9,5 +9,5 @@ in
   automerge.sml
 end
 
-rope.sml
+tiny_rope.sml
 utils.sml

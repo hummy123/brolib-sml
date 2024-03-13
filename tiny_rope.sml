@@ -1,15 +1,16 @@
-signature ROPE =
+signature TINY_ROPE =
 sig
   type t
   val empty: t
   val fromString: string -> t
   val size: t -> int
   val insert: int * string * t -> t
+  val append: string * t -> t
   val delete: int * int * t -> t
   val toString: t -> string
 end
 
-structure Rope :> ROPE =
+structure TinyRope :> TINY_ROPE =
 struct
   datatype t =
     N0 of string
@@ -242,6 +243,49 @@ struct
   fun insert (index, str, rope) =
     let
       val (rope, action) = ins (index, str, rope)
+    in
+      (case action of
+         NoAction => rope
+       | AddedNode => insRoot rope
+       | DeletedNode => delRoot rope)
+    end
+
+  fun app (newStr, rope) =
+    case rope of
+      N2 (l, lm, r) =>
+        let
+          val (r, action) = app (newStr, r)
+        in
+          (case action of
+             NoAction =>
+               (case (l, r) of
+                  (N0 s1, N0 s2) =>
+                    if isLessThanTarget (s1, s2) then
+                      (N0 (s1 ^ s2), DeletedNode)
+                    else
+                      (N2 (l, lm, r), action)
+                | _ => (N2 (l, lm, r), action))
+           | AddedNode => (insN2Right (l, r), action)
+           | DeletedNode => (delN2Right (l, r), action))
+        end
+    | N1 t =>
+        let
+          val (t, action) = app (newStr, t)
+        in
+          (case action of
+             AddedNode => (insN1 t, action)
+           | _ => (N1 t, action))
+        end
+    | N0 oldStr =>
+        if isLessThanTarget (oldStr, newStr) then
+          (N0 (oldStr ^ newStr), NoAction)
+        else
+          (L2 (oldStr, newStr), AddedNode)
+    | _ => raise AuxConstructor
+
+  fun append (str, rope) =
+    let
+      val (rope, action) = app (str, rope)
     in
       (case action of
          NoAction => rope

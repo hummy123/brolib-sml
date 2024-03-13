@@ -21,17 +21,17 @@ fun run_txns arr =
       let
         val rope = 
           if del_num > 0 
-          then Rope.delete(pos, del_num, rope)
+          then TinyRope.delete(pos, del_num, rope)
           else rope
         val str_size = String.size ins_str
         val rope = 
           if str_size > 0 
-          then Rope.insert(pos, ins_str, rope)
+          then TinyRope.insert(pos, ins_str, rope)
           else rope
       in
         rope
       end) 
-    Rope.empty arr
+    TinyRope.empty arr
 
 fun run_txns_time title arr = 
   let
@@ -41,7 +41,7 @@ fun run_txns_time title arr =
   end
 
 fun run_to_string rope =
-  Rope.toString rope
+  TinyRope.toString rope
 
 fun run_to_string_time title rope =
   let
