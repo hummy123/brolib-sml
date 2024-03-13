@@ -102,7 +102,7 @@ struct
           val left = N2 (t1, size t1, t2)
           val inner = N2 (left, size left, t3)
         in
-          N1 (inner)
+          N1 inner
         end
     | (N1 (N1 t1), N2 (N2 (t2, _, t3), _, N1 t4)) =>
         let
