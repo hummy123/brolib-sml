@@ -3,11 +3,7 @@ sig
   type t
   val empty: t
   val fromString: string -> t
-  val size: t -> int
-  val insert: int * string * t -> t
-  val append: string * t -> t
-  val delete: int * int * t -> t
-  val toString: t -> string
+  val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
 end
 
 structure Rope :> ROPE =
@@ -44,57 +40,128 @@ struct
   fun countLineBreaks str =
     helpCountLineBreaks (String.size str - 1, [], str)
 
+  (* Binary search. Used to find split point in vector. *)
+  fun binSearch (findNum, lines, low, high) =
+    if Vector.length lines = 0 then
+      0
+    else
+      let
+        val mid = low + ((high - low) div 2)
+      in
+        if high >= low then
+          let
+            val midVal = Vector.sub (lines, mid)
+          in
+            if midVal = findNum then
+              mid
+            else if midVal < findNum then
+              binSearch (findNum, lines, mid + 1, high)
+            else
+              binSearch (findNum, lines, low, mid - 1)
+          end
+        else
+          mid
+      end
+
   datatype t =
-    N0 of string
+    N0 of string * int vector
   | N1 of t
-  | N2 of t * int * t
-  | L2 of string * string
+  | N2 of t * int * int * t
+  | L2 of string * int vector * string * int vector
   | N3 of t * t * t
 
   exception AuxConstructor
 
   exception Substring of int
 
+  fun foldrString (f, state, rope) =
+    case rope of
+      N2 (l, _, _, r) =>
+        let val state = foldrString (f, state, r)
+        in foldrString (f, state, l)
+        end
+    | N1 t => foldrString (f, state, t)
+    | N0 (s, _) => f (state, s)
+    | _ => raise AuxConstructor
+
+  fun toString rope =
+    let val strList = foldrString ((fn (acc, str) => str :: acc), [], rope)
+    in String.concat strList
+    end
+
   fun foldr (f, state, rope) =
     case rope of
-      N2 (l, _, r) =>
+      N2 (l, _, _, r) =>
         let val state = foldr (f, state, r)
         in foldr (f, state, l)
         end
     | N1 t => foldr (f, state, t)
-    | N0 s => f (state, s)
+    | N0 (s, v) => f (state, s, v)
     | _ => raise AuxConstructor
-
-  fun toString rope =
-    let val strList = foldr ((fn (acc, str) => str :: acc), [], rope)
-    in String.concat strList
-    end
 
   datatype balance = AddedNode | DeletedNode | NoAction
 
   val targetLength = 1024
-  val empty = N0 ""
-  fun fromString string = N0 string
+  val targetVecLength = 128
 
-  fun isLessThanTarget (str1, str2) =
+  fun id x = x
+  val emptyVec = Vector.tabulate (0, id)
+  val empty = N0 ("", emptyVec)
+
+  fun fromString string =
+    let val lineBreaks = countLineBreaks string
+    in N0 (string, lineBreaks)
+    end
+
+  fun isLessThanTarget (str1, str2, vec1, vec2) =
     String.size str1 + String.size str2 <= targetLength
+    andalso Vector.length vec1 + Vector.length vec2 <= targetVecLength
 
-  fun helpSize (acc, rope) =
+  (* This function creates a new node in the rope, calculating right-metadata.
+   * This is equivalent to helpSize/size in tiny_rope.ml, 
+   * but because the size function in tiny_rope.ml was only used 
+   * by callers to construct N2 cases, 
+   * it can be replaced with a function that constructs N2 cases
+   * instead of returning (int * int) metadata which results in
+   * an extra tuple allocation. *)
+  fun helpMakeN2 (idxAcc, lineAcc, left, right, rope) =
     case rope of
-      N0 s => acc + String.size s
-    | N1 t => helpSize (acc, t)
-    | N2 (_, lm, r) => helpSize (acc + lm, r)
+      N2 (_, lms, lmv, r) =>
+        helpMakeN2 (lms + idxAcc, lmv + lineAcc, left, right, r)
+    | N1 t => helpMakeN2 (idxAcc, lineAcc, left, right, t)
+    | N0 (str, lines) =>
+        let
+          val idxAcc = idxAcc + String.size str
+          val lineAcc = lineAcc + Vector.length lines
+        in
+          N2 (left, idxAcc, lineAcc, right)
+        end
     | _ => raise AuxConstructor
 
-  fun size rope = helpSize (0, rope)
+  (* Accumulate right-metadata for left rope. *)
+  fun makeN2 (left, right) =
+    helpMakeN2 (0, 0, left, right, left)
+
+  fun insL2 (s1, v1, s2, v2) =
+    let
+      val left = N0 (s1, v1)
+      val right = N0 (s2, v2)
+    in
+      N2 (left, String.size s1, Vector.length v1, right)
+    end
+
+  fun insN3 (t1, t2, t3) =
+    let
+      val left = makeN2 (t1, t2)
+      val right = N1 t3
+    in
+      makeN2 (left, right)
+    end
 
   fun insRoot rope =
     case rope of
-      L2 (s1, s2) => N2 (N0 s1, String.size s1, N0 s2)
-    | N3 (t1, t2, t3) =>
-        let val left = N2 (t1, size t1, t2)
-        in N2 (left, size left, N1 t3)
-        end
+      L2 (s1, v1, s2, v2) => insL2 (s1, v1, s2, v2)
+    | N3 (t1, t2, t3) => insN3 (t1, t2, t3)
     | t => t
 
   fun delRoot rope =
@@ -104,285 +171,247 @@ struct
 
   fun insN1 rope =
     case rope of
-      L2 (s1, s2) => N2 (N0 s1, String.size s1, N0 s2)
-    | N3 (t1, t2, t3) =>
-        let val left = N2 (t1, size t1, t2)
-        in N2 (left, size left, N1 t3)
-        end
+      L2 (s1, v1, s2, v2) => insL2 (s1, v1, s2, v2)
+    | N3 (t1, t2, t3) => insN3 (t1, t2, t3)
     | t => N1 t
 
   fun insN2Left (left, right) =
     case (left, right) of
-      (L2 (s1, s2), t3) => N3 (N0 s1, N0 s2, t3)
+      (L2 (s1, v1, s2, v2), t3) =>
+        let
+          val left = N0 (s1, v1)
+          val middle = N0 (s2, v2)
+        in
+          N3 (left, middle, t3)
+        end
     | (N3 (t1, t2, t3), N1 t4) =>
         let
-          val left = N2 (t1, size t1, t2)
-          val right = N2 (t3, size t3, t4)
+          val left = makeN2 (t1, t2)
+          val right = makeN2 (t3, t4)
         in
-          N2 (left, size left, right)
+          makeN2 (left, right)
         end
     | (N3 (t1, t2, t3), t4) =>
-        let val left = N2 (t1, size t1, t2)
-        in N3 (left, N1 t3, t4)
+        let
+          val left = makeN2 (t1, t2)
+          val middle = N1 t3
+        in
+          N3 (left, middle, t4)
         end
-    | (l, r) => N2 (l, size l, r)
+    | (l, r) => makeN2 (l, r)
 
   fun delN2Left (left, right) =
     case (left, right) of
-      (N1 t1, N1 t2) => N1 (N2 (t1, size t1, t2))
-    | (N1 (N1 t1), N2 (N1 t2, _, (t3 as N2 _))) =>
+      (N1 t1, N1 t2) => let val inner = makeN2 (t1, t2) in N1 inner end
+    | (N1 (N1 t1), N2 (N1 t2, _, _, (t3 as N2 _))) =>
         let
-          val left = N2 (t1, size t1, t2)
-          val inner = N2 (left, size left, t3)
+          val left = makeN2 (t1, t2)
+          val inner = makeN2 (left, t3)
         in
           N1 inner
         end
-    | (N1 (N1 t1), N2 (N2 (t2, _, t3), _, N1 t4)) =>
+    | (N1 (N1 t1), N2 (N2 (t2, _, _, t3), _, _, N1 t4)) =>
         let
-          val left = N2 (t1, size t1, t2)
-          val right = N2 (t3, size t3, t4)
-          val inner = N2 (left, size left, right)
+          val left = makeN2 (t1, t2)
+          val right = makeN2 (t3, t4)
+          val inner = makeN2 (left, right)
         in
           N1 inner
         end
-    | (N1 (t1 as N1 _), N2 ((t2 as N2 _), _, (t3 as N2 _))) =>
+    | (N1 (t1 as N1 _), N2 ((t2 as N2 _), _, _, (t3 as N2 _))) =>
         let
-          val left = N2 (t1, size t1, t2)
+          val left = makeN2 (t1, t2)
           val right = N1 t3
         in
-          N2 (left, size left, right)
+          makeN2 (left, right)
         end
-    | (l, r) => N2 (l, size l, r)
+    | (l, r) => makeN2 (l, r)
 
   fun insN2Right (left, right) =
     case (left, right) of
-      (t1, L2 (s1, s2)) => N3 (t1, N0 s1, N0 s2)
+      (t1, L2 (s1, v1, s2, v2)) =>
+        let
+          val middle = N0 (s1, v1)
+          val right = N0 (s2, v2)
+        in
+          N3 (t1, middle, right)
+        end
     | (N1 t1, N3 (t2, t3, t4)) =>
         let
-          val left = N2 (t1, size t1, t2)
-          val right = N2 (t3, size t3, t4)
+          val left = makeN2 (t1, t2)
+          val right = makeN2 (t3, t4)
         in
-          N2 (left, size left, right)
+          makeN2 (left, right)
         end
     | (t1, N3 (t2, t3, t4)) =>
-        let val right = N2 (t3, size t3, t4)
-        in N3 (t1, N1 t2, right)
+        let
+          val right = makeN2 (t3, t4)
+          val middle = N1 t2
+        in
+          N3 (t1, middle, right)
         end
-    | (l, r) => N2 (l, size l, r)
+    | (l, r) => makeN2 (l, r)
 
   fun delN2Right (left, right) =
     case (left, right) of
-      (N2 (N1 t1, _, N2 (t2, _, t3)), N1 (N1 t4)) =>
+      (N2 (N1 t1, _, _, N2 (t2, _, _, t3)), N1 (N1 t4)) =>
         let
-          val left = N2 (t1, size t1, t2)
-          val right = N2 (t3, size t3, t4)
-          val inner = N2 (left, size left, right)
+          val left = makeN2 (t1, t2)
+          val right = makeN2 (t3, t4)
+          val inner = makeN2 (left, right)
         in
           N1 inner
         end
-    | (N2 ((t1 as N2 _), lm, N1 t2), N1 (N1 t3)) =>
+    | (N2 ((t1 as N2 _), lms, lmv, N1 t2), N1 (N1 t3)) =>
         let
-          val right = N2 (t2, size t2, t3)
-          val inner = N2 (t1, lm, right)
+          val right = makeN2 (t2, t3)
+          val inner = N2 (t1, lms, lmv, right)
         in
           N1 inner
         end
-    | (N2 ((t1 as N2 _), _, (t2 as N2 _)), N1 (t3 as N1 _)) =>
+    | (N2 ((t1 as N2 _), _, _, (t2 as N2 _)), N1 (t3 as N1 _)) =>
         let
           val left = N1 t1
-          val right = N2 (t2, size t2, t3)
+          val right = makeN2 (t2, t3)
         in
-          N2 (left, size left, right)
+          makeN2 (left, right)
         end
-    | (l, r) => N2 (l, size l, r)
+    | (l, r) => makeN2 (l, r)
 
-  fun insLeaf (curIdx, newStr, rope, oldStr) =
+  fun insVecBefore (oldVec, newVec, newStr) =
+    let
+      val oldLen = Vector.length oldVec
+      val newLen = Vector.length newVec
+      val total = oldLen + newLen
+      val newStrLen = String.size newStr
+    in
+      Vector.tabulate (total, (fn (idx) =>
+        if idx < newLen then Vector.sub (newVec, idx)
+        else Vector.sub (oldVec, idx - newLen) + newStrLen))
+    end
+
+  fun insVecAfter (oldStr, oldVec, newVec) =
+    let
+      val oldLen = Vector.length oldVec
+      val newLen = Vector.length newVec
+      val total = oldLen + newLen
+      val oldStrLen = String.size oldStr
+    in
+      Vector.tabulate (total, (fn (idx) =>
+        if idx < oldLen then Vector.sub (oldVec, idx)
+        else Vector.sub (newVec, idx - oldLen) + oldStrLen))
+    end
+
+  fun insLeaf (curIdx, newStr, newVec, rope, oldStr, oldVec) =
     if curIdx <= 0 then
-      if isLessThanTarget (oldStr, newStr) then (N0 (newStr ^ oldStr), NoAction)
-      else (L2 (newStr, oldStr), AddedNode)
+      if isLessThanTarget (oldStr, newStr, oldVec, newVec) then
+        let
+          val str = newStr ^ oldStr
+          val vec = insVecBefore (oldVec, newVec, newStr)
+        in
+          (N0 (str, vec), NoAction)
+        end
+      else
+        let val l2 = L2 (newStr, newVec, oldStr, oldVec)
+        in (l2, AddedNode)
+        end
     else if curIdx >= String.size oldStr then
-      if isLessThanTarget (oldStr, newStr) then (N0 (oldStr ^ newStr), NoAction)
-      else (L2 (oldStr, newStr), AddedNode)
+      if isLessThanTarget (oldStr, newStr, oldVec, newVec) then
+        let
+          val str = oldStr ^ newStr
+          val vec = insVecAfter (oldStr, oldVec, newVec)
+        in
+          (N0 (str, vec), NoAction)
+        end
+      else
+        let val l2 = L2 (oldStr, oldVec, newStr, newVec)
+        in (l2, AddedNode)
+        end
     else
       (* Need to split in middle of string. *)
       let
         val sub1 = String.substring (oldStr, 0, curIdx)
         val sub2Len = String.size oldStr - curIdx
         val sub2 = String.substring (oldStr, curIdx, sub2Len)
+
+        val oldVecLen = Vector.length oldVec
+        val midPoint = binSearch (String.size sub1, oldVec, 0, oldVecLen)
+
+        val newVecLen = Vector.length newVec
       in
         if
-          isLessThanTarget (oldStr, newStr)
+          isLessThanTarget (oldStr, newStr, oldVec, newVec)
         then
-          (N0 (sub1 ^ newStr ^ sub2), NoAction)
+          let
+            val str = sub1 ^ newStr ^ sub2
+            val totalVecLen = Vector.length oldVec + Vector.length newVec
+            val vec = Vector.tabulate (totalVecLen, (fn idx =>
+              if idx < midPoint then
+                Vector.sub (oldVec, idx)
+              else if idx < midPoint + newVecLen then
+                Vector.sub (newVec, idx - midPoint)
+              else
+                Vector.sub (oldVec, idx - newVecLen)))
+          in
+            (N0 (str, vec), NoAction)
+          end
         else if
           curIdx + String.size newStr <= targetLength
+          andalso midPoint + newVecLen <= targetVecLength
         then
-          (L2 (sub1 ^ newStr, sub2), AddedNode)
+          let
+            val str1 = sub1 ^ newStr
+            val vec1 = Vector.tabulate (midPoint + newVecLen, (fn idx =>
+              if idx < midPoint then Vector.sub (oldVec, idx)
+              else Vector.sub (newVec, idx - midPoint)))
+
+            val vec2 = Vector.tabulate (oldVecLen - midPoint, (fn idx =>
+              Vector.sub (oldVec, idx + midPoint)))
+
+            val l2 = L2 (str1, vec1, sub2, vec2)
+          in
+            (l2, AddedNode)
+          end
         else if
           ((String.size oldStr) - curIdx) + String.size newStr <= targetLength
+          andalso (midPoint - oldVecLen) + newVecLen <= targetVecLength
         then
-          (L2 (sub1, newStr ^ sub2), AddedNode)
-        else
-          (N3 (N0 sub1, N0 newStr, N0 sub2), AddedNode)
-      end
-
-  fun ins (curIdx, newStr, rope) =
-    case rope of
-      N2 (l, lm, r) =>
-        if curIdx < lm then
           let
-            val (l, action) = ins (curIdx, newStr, l)
+            val str2 = newStr ^ sub2
+            val newStrLen = String.size newStr
+            val vec2 =
+              Vector.tabulate ((midPoint - oldVecLen) + newVecLen, (fn idx =>
+                if idx < newVecLen then Vector.sub (newVec, idx)
+                else Vector.sub (oldVec, idx - newVecLen) + newStrLen))
+
+            val vec1 = Vector.tabulate (midPoint, (fn idx =>
+              Vector.sub (oldVec, idx)))
+
+            val l2 = L2 (sub1, vec1, str2, vec2)
           in
-            (case action of
-               NoAction =>
-                 (case (l, r) of
-                    (N0 s1, N0 s2) =>
-                      if isLessThanTarget (s1, s2) then
-                        (N0 (s1 ^ s2), DeletedNode)
-                      else
-                        (N2 (l, lm + String.size newStr, r), action)
-                  | _ => (N2 (l, lm + String.size newStr, r), action))
-             | AddedNode => (insN2Left (l, r), action)
-             | DeletedNode => (delN2Left (l, r), action))
+            (l2, AddedNode)
           end
         else
           let
-            val (r, action) = ins (curIdx - lm, newStr, r)
+            val vec1 =
+              if oldVecLen = 0 then
+                emptyVec
+              else
+                Vector.tabulate (midPoint, (fn idx => Vector.sub (oldVec, idx)))
+
+            val vec2 =
+              if oldVecLen = 0 orelse midPoint >= oldVecLen then
+                emptyVec
+              else
+                Vector.tabulate (oldVecLen - midPoint, (fn idx =>
+                  Vector.sub (oldVec, midPoint + idx)))
+
+            val left = N0 (sub1, vec1)
+            val right = N0 (sub2, vec2)
+            val mid = N0 (newStr, newVec)
           in
-            (case action of
-               NoAction =>
-                 (case (l, r) of
-                    (N0 s1, N0 s2) =>
-                      if isLessThanTarget (s1, s2) then
-                        (N0 (s1 ^ s2), DeletedNode)
-                      else
-                        (N2 (l, lm, r), action)
-                  | _ => (N2 (l, lm, r), action))
-             | AddedNode => (insN2Right (l, r), action)
-             | DeletedNode => (delN2Right (l, r), action))
+            (N3 (left, right, mid), AddedNode)
           end
-    | N1 t =>
-        let
-          val (t, action) = ins (curIdx, newStr, t)
-        in
-          (case action of
-             AddedNode => (insN1 t, action)
-           | _ => (N1 t, action))
-        end
-    | N0 oldStr => insLeaf (curIdx, newStr, rope, oldStr)
-    | _ => raise AuxConstructor
-
-  fun insert (index, str, rope) =
-    let
-      val (rope, action) = ins (index, str, rope)
-    in
-      (case action of
-         NoAction => rope
-       | AddedNode => insRoot rope
-       | DeletedNode => delRoot rope)
-    end
-
-  fun app (newStr, rope) =
-    case rope of
-      N2 (l, lm, r) =>
-        let
-          val (r, action) = app (newStr, r)
-        in
-          (case action of
-             NoAction =>
-               (case (l, r) of
-                  (N0 s1, N0 s2) =>
-                    if isLessThanTarget (s1, s2) then
-                      (N0 (s1 ^ s2), DeletedNode)
-                    else
-                      (N2 (l, lm, r), action)
-                | _ => (N2 (l, lm, r), action))
-           | AddedNode => (insN2Right (l, r), action)
-           | DeletedNode => (delN2Right (l, r), action))
-        end
-    | N1 t =>
-        let
-          val (t, action) = app (newStr, t)
-        in
-          (case action of
-             AddedNode => (insN1 t, action)
-           | _ => (N1 t, action))
-        end
-    | N0 oldStr =>
-        if isLessThanTarget (oldStr, newStr) then
-          (N0 (oldStr ^ newStr), NoAction)
-        else
-          (L2 (oldStr, newStr), AddedNode)
-    | _ => raise AuxConstructor
-
-  fun append (str, rope) =
-    let
-      val (rope, action) = app (str, rope)
-    in
-      (case action of
-         NoAction => rope
-       | AddedNode => insRoot rope
-       | DeletedNode => delRoot rope)
-    end
-
-  fun delLeaf (startIdx, endIdx, str) =
-    if startIdx <= 0 andalso endIdx >= String.size str then
-      (empty, false)
-    else if startIdx >= 0 andalso endIdx <= String.size str then
-      let
-        val sub1 = String.substring (str, 0, startIdx)
-        val sub2 = String.substring (str, endIdx, (String.size str - endIdx))
-      in
-        if isLessThanTarget (sub1, sub2) then (N0 (sub1 ^ sub2), false)
-        else (L2 (sub1, sub2), true)
-      end
-    else if startIdx >= 0 andalso endIdx >= String.size str then
-      let
-        val start = Int.toString startIdx
-        val str = String.substring (str, 0, startIdx)
-      in
-        (N0 str, false)
-      end
-    else
-      let val str = String.substring (str, endIdx, String.size str - endIdx)
-      in (N0 str, false)
       end
 
-  fun del (startIdx, endIdx, rope) =
-    case rope of
-      N2 (l, lm, r) =>
-        if lm > startIdx andalso lm > endIdx then
-          let
-            val (l, didAdd) = del (startIdx, endIdx, l)
-          in
-            if didAdd then (insN2Left (l, r), didAdd)
-            else (N2 (l, size l, r), didAdd)
-          end
-        else if lm < startIdx andalso lm < endIdx then
-          let
-            val (r, didAdd) = del (startIdx - lm, endIdx - lm, r)
-          in
-            if didAdd then (insN2Right (l, r), didAdd)
-            else (N2 (l, lm, r), didAdd)
-          end
-        else
-          let
-            val (r, didAddR) = del (startIdx - lm, endIdx - lm, r)
-            val (l, didaddL) = del (startIdx, endIdx, l)
-          in
-            if didaddL then (insN2Left (l, r), didaddL)
-            else if didAddR then (insN2Right (l, r), didAddR)
-            else (N2 (l, size l, r), false)
-          end
-    | N1 t =>
-        let val (t, didAdd) = del (startIdx, endIdx, t)
-        in if didAdd then (insN1 t, didAdd) else (N1 t, didAdd)
-        end
-    | N0 str => delLeaf (startIdx, endIdx, str)
-    | _ => raise AuxConstructor
-
-  fun delete (start, length, rope) =
-    let val (rope, didAdd) = del (start, start + length, rope)
-    in if didAdd then insRoot rope else delRoot rope
-    end
 end
