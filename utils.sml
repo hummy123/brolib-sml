@@ -41,7 +41,7 @@ fun run_txns_time title arr =
   end
 
 fun run_to_string rope =
-  Rope.to_string rope
+  Rope.toString rope
 
 fun run_to_string_time title rope =
   let
