@@ -16,6 +16,8 @@ sig
   val append: string * t -> t
   val appendLine: string * int vector * t -> t
 
+  val delete: int * int * t -> t
+
   (* This below function verifies that line metadata is as expected,
    * raising an exception if it is different, 
    * and returning true if it is the same. *)
@@ -542,6 +544,112 @@ struct
   fun appendLine (newStr, newVec, rope) =
     let val (rope, action) = app (newStr, newVec, rope)
     in endInsert (rope, action)
+    end
+
+  fun delLeaf (startIdx, endIdx, str, vec) =
+    if
+      startIdx <= 0 andalso endIdx >= String.size str
+    then
+      (empty, false)
+    else if
+      startIdx > 0 andalso endIdx < String.size str
+    then
+      let
+        val sub1 = String.substring (str, 0, startIdx)
+        val sub2 = String.substring (str, endIdx, (String.size str - endIdx))
+
+        val vecLength = Vector.length vec - 1
+        val startPoint = binSearch (startIdx, vec, 0, vecLength)
+        val endPoint = binSearch (endIdx, vec, 0, vecLength)
+        val difference = endIdx - startIdx
+      in
+        if isLessThanTarget (sub1, sub2) then
+          let
+            val str = sub1 ^ sub2
+            val vecDifference = endPoint - startPoint
+            val vecLength = Vector.length vec - vecDifference
+            val vec = Vector.tabulate (vecLength, (fn idx =>
+              let val point = Vector.sub (vec, idx)
+              in if point < startIdx then point else point - difference
+              end))
+          in
+            (N0 (str, vec), false)
+          end
+        else
+          let
+            val vec1 =
+              if Vector.length vec = 0 then
+                emptyVec
+              else
+                Vector.tabulate (startPoint, (fn idx => Vector.sub (vec, idx)))
+
+            val vec2 =
+              if Vector.length vec = 0 then
+                emptyVec
+              else
+                Vector.tabulate (Vector.length vec - startPoint, (fn idx =>
+                  Vector.sub (vec, idx + startPoint) - difference))
+          in
+            (L2 (sub1, vec1, sub2, vec2), true)
+          end
+      end
+    else if
+      startIdx >= 0 andalso startIdx <= String.size str
+      andalso endIdx >= String.size str
+    then
+      let
+        val str = String.substring (str, 0, startIdx)
+        val midPoint = binSearch (startIdx, vec, 0, vecLength)
+        val vec =
+          if Vector.length vec = 0 then emptyVec
+          else Vector.tabulate (midPoint, fn idx => Vector.sub (vec, idx))
+      in
+        (N0 (str, vec), false)
+      end
+    else
+      let
+        val str = String.substring (str, endIdx, String.size str - endIdx)
+        val midPoint = binSearch (endIdx, vec, 0, vecLength)
+        val vec =
+          if Vector.length vec = 0 then
+            emptyVec
+          else
+            Vector.tabulate (Vector.length vec - midPoint, fn idx =>
+              Vector.sub (vec, idx + midPoint))
+      in
+        (N0 (str, vec), false)
+      end
+
+  fun del (startIdx, endIdx, rope) =
+    case rope of
+      N2 (l, lms, lmv, r) =>
+        if lms > startIdx andalso lms > endIdx then
+          let
+            val (l, didIns) = del (startIdx, endIdx, l)
+            val rope = if didIns then insN2Left (l, r) else makeN2 (l, r)
+          in
+            (rope, didIns)
+          end
+        else if lms < startIdx andalso lms < endIdx then
+          let
+            val (r, didIns) = del (startIdx - lms, endIdx - lms, r)
+            val rope = if didIns then insN2Right (l, r) else makeN2 (l, r)
+          in
+            (rope, didIns)
+          end
+        else
+          let
+            val (l, _) = del (startIdx, endIdx, l)
+            val (r, _) = del (startIdx - lms, endIdx - lms, r)
+          in
+            makeN2 (l, r)
+          end
+    | N1 t => del (startIdx, endIdx, t)
+    | N0 (str, vec) => delLeaf (startIdx, endIdx, str, vec)
+
+  fun delete (start, length, rope) =
+    let val (rope, didIns) = del (start, start + length, rope)
+    in if didIns then insRoot rope else rope
     end
 
   fun verifyLines rope =

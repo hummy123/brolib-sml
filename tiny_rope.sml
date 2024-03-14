@@ -306,7 +306,6 @@ struct
       end
     else if startIdx >= 0 andalso endIdx >= String.size str then
       let
-        val start = Int.toString startIdx
         val str = String.substring (str, 0, startIdx)
       in
         (N0 str, false)
