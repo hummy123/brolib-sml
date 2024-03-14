@@ -5,6 +5,11 @@ sig
   val fromString: string -> t
   val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
   val insert: int * string * t -> t
+
+  (* This below function verifies that line metadata is as expected,
+   * raising an exception if it is different, 
+   * and returning true if it is the same. *)
+  val verifyLines: t -> bool
 end
 
 structure Rope :> ROPE =
@@ -438,7 +443,6 @@ struct
       (node, DeletedNode)
     end
 
-
   fun ins (curIdx, newStr, newVec, rope) =
     case rope of
       N2 (l, lms, lmv, r) =>
@@ -500,4 +504,16 @@ struct
        | DeletedNode => delRoot rope)
     end
 
+  fun verifyLines rope =
+    foldr
+      ( (fn (_, str, vec) =>
+           let
+             val strVec = countLineBreaks str
+             val isSame = strVec = vec
+           in
+             if isSame then true else raise Empty
+           end)
+      , true
+      , rope
+      )
 end

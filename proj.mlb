@@ -10,4 +10,5 @@ in
 end
 
 tiny_rope.sml
+rope.sml
 utils.sml
