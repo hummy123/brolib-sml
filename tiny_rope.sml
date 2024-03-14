@@ -305,10 +305,8 @@ struct
         else (L2 (sub1, sub2), true)
       end
     else if startIdx >= 0 andalso endIdx >= String.size str then
-      let
-        val str = String.substring (str, 0, startIdx)
-      in
-        (N0 str, false)
+      let val str = String.substring (str, 0, startIdx)
+      in (N0 str, false)
       end
     else
       let val str = String.substring (str, endIdx, String.size str - endIdx)

@@ -7,6 +7,8 @@ sig
   val toString: t -> string
   val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
 
+  (* The caller should not insert in the middle of a \r\n pair,
+   * or else line metadata will become invalid. *)
   val insert: int * string * t -> t
 
   (* The append and appendLine function both add a string to the end.
@@ -16,6 +18,8 @@ sig
   val append: string * t -> t
   val appendLine: string * int vector * t -> t
 
+  (* The caller should not delete only a single character in a \r\n pair,
+   * because then line metadata will become invalid. *)
   val delete: int * int * t -> t
 
   (* This below function verifies that line metadata is as expected,
@@ -546,6 +550,15 @@ struct
     in endInsert (rope, action)
     end
 
+  fun isDelLessThanTarget (str1, str2, vec, startPoint, endPoint) =
+    let
+      val vecLength = Vector.length vec - (endPoint - startPoint)
+    in
+      String.size str1 + String.size str2 <= targetLength
+      andalso vecLength <= targetVecLength
+    end
+
+
   fun delLeaf (startIdx, endIdx, str, vec) =
     if
       startIdx <= 0 andalso endIdx >= String.size str
@@ -563,7 +576,7 @@ struct
         val endPoint = binSearch (endIdx, vec, 0, vecLength)
         val difference = endIdx - startIdx
       in
-        if isLessThanTarget (sub1, sub2) then
+        if isDelLessThanTarget (sub1, sub2, vec, startPoint, endPoint) then
           let
             val str = sub1 ^ sub2
             val vecDifference = endPoint - startPoint
@@ -599,7 +612,7 @@ struct
     then
       let
         val str = String.substring (str, 0, startIdx)
-        val midPoint = binSearch (startIdx, vec, 0, vecLength)
+        val midPoint = binSearch (startIdx, vec, 0, Vector.length vec - 1)
         val vec =
           if Vector.length vec = 0 then emptyVec
           else Vector.tabulate (midPoint, fn idx => Vector.sub (vec, idx))
@@ -609,7 +622,7 @@ struct
     else
       let
         val str = String.substring (str, endIdx, String.size str - endIdx)
-        val midPoint = binSearch (endIdx, vec, 0, vecLength)
+        val midPoint = binSearch (endIdx, vec, 0, Vector.length vec - 1)
         val vec =
           if Vector.length vec = 0 then
             emptyVec
@@ -642,10 +655,11 @@ struct
             val (l, _) = del (startIdx, endIdx, l)
             val (r, _) = del (startIdx - lms, endIdx - lms, r)
           in
-            makeN2 (l, r)
+            (makeN2 (l, r), false)
           end
     | N1 t => del (startIdx, endIdx, t)
     | N0 (str, vec) => delLeaf (startIdx, endIdx, str, vec)
+    | _ => raise AuxConstructor
 
   fun delete (start, length, rope) =
     let val (rope, didIns) = del (start, start + length, rope)
