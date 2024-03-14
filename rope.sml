@@ -5,6 +5,7 @@ sig
   val fromString: string -> t
   val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
   val insert: int * string * t -> t
+  val toString: t -> string
 
   (* This below function verifies that line metadata is as expected,
    * raising an exception if it is different, 
@@ -291,7 +292,7 @@ struct
       val total = oldLen + newLen
       val newStrLen = String.size newStr
     in
-      Vector.tabulate (total, (fn (idx) =>
+      Vector.tabulate (total, (fn idx =>
         if idx < newLen then Vector.sub (newVec, idx)
         else Vector.sub (oldVec, idx - newLen) + newStrLen))
     end
@@ -303,7 +304,7 @@ struct
       val total = oldLen + newLen
       val oldStrLen = String.size oldStr
     in
-      Vector.tabulate (total, (fn (idx) =>
+      Vector.tabulate (total, (fn idx =>
         if idx < oldLen then Vector.sub (oldVec, idx)
         else Vector.sub (newVec, idx - oldLen) + oldStrLen))
     end
@@ -493,15 +494,18 @@ struct
         insLeaf (curIdx, newStr, newVec, rope, oldStr, oldVec)
     | _ => raise AuxConstructor
 
+  fun endInsert (rope, action) =
+    case action of
+      NoAction => rope
+    | AddedNode => insRoot rope
+    | DeletedNode => delRoot rope
+
   fun insert (index, str, rope) =
     let
       val newVec = countLineBreaks str
       val (rope, action) = ins (index, str, newVec, rope)
     in
-      (case action of
-         NoAction => rope
-       | AddedNode => insRoot rope
-       | DeletedNode => delRoot rope)
+      endInsert (rope, action)
     end
 
   fun verifyLines rope =
