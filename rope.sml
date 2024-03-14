@@ -4,6 +4,7 @@ sig
   val empty: t
   val fromString: string -> t
   val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
+  val insert: int * string * t -> t
 end
 
 structure Rope :> ROPE =
@@ -413,5 +414,90 @@ struct
             (N3 (left, right, mid), AddedNode)
           end
       end
+
+  fun insLMoreThanTarget (lms, newStr, lmv, newVec, l, r, action) =
+    let
+      val lms = lms + String.size newStr
+      val lmv = lmv + Vector.length newVec
+      val node = N2 (l, lms, lmv, r)
+    in
+      (node, action)
+    end
+
+  fun insLessThanTarget (s1, s2, v1, v2) =
+    let
+      val str = s1 ^ s2
+      val s1Len = String.size s1
+      val v1Len = Vector.length v1
+      val v2Len = Vector.length v2
+      val vec = Vector.tabulate (v1Len + v2Len, (fn idx =>
+        if idx < v1Len then Vector.sub (v1, idx)
+        else Vector.sub (v2, idx - v1Len) + s1Len))
+      val node = N0 (str, vec)
+    in
+      (node, DeletedNode)
+    end
+
+
+  fun ins (curIdx, newStr, newVec, rope) =
+    case rope of
+      N2 (l, lms, lmv, r) =>
+        if curIdx < lms then
+          let
+            val (l, action) = ins (curIdx, newStr, newVec, l)
+          in
+            (case action of
+               NoAction =>
+                 (case (l, r) of
+                    (N0 (s1, v1), N0 (s2, v2)) =>
+                      if isLessThanTarget (s1, s2, v1, v2) then
+                        insLessThanTarget (s1, s2, v1, v2)
+                      else
+                        insLMoreThanTarget
+                          (lms, newStr, lmv, newVec, l, r, action)
+                  | _ =>
+                      insLMoreThanTarget
+                        (lms, newStr, lmv, newVec, l, r, action))
+             | AddedNode => (insN2Left (l, r), action)
+             | DeletedNode => (delN2Left (l, r), action))
+          end
+        else
+          let
+            val (r, action) = ins (curIdx - lms, newStr, newVec, r)
+          in
+            (case action of
+               NoAction =>
+                 (case (l, r) of
+                    (N0 (s1, v1), N0 (s2, v2)) =>
+                      if isLessThanTarget (s1, s2, v1, v2) then
+                        insLessThanTarget (s1, s2, v1, v2)
+                      else
+                        (makeN2 (l, r), action)
+                  | _ => (makeN2 (l, r), action))
+             | AddedNode => (insN2Right (l, r), action)
+             | DeletedNode => (delN2Right (l, r), action))
+          end
+    | N1 t =>
+        let
+          val (t, action) = ins (curIdx, newStr, newVec, t)
+        in
+          (case action of
+             AddedNode => (insN1 t, action)
+           | _ => (N1 t, action))
+        end
+    | N0 (oldStr, oldVec) =>
+        insLeaf (curIdx, newStr, newVec, rope, oldStr, oldVec)
+    | _ => raise AuxConstructor
+
+  fun insert (index, str, rope) =
+    let
+      val newVec = countLineBreaks str
+      val (rope, action) = ins (index, str, newVec, rope)
+    in
+      (case action of
+         NoAction => rope
+       | AddedNode => insRoot rope
+       | DeletedNode => delRoot rope)
+    end
 
 end
