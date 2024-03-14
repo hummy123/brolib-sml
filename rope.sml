@@ -2,10 +2,19 @@ signature ROPE =
 sig
   type t
   val empty: t
+
   val fromString: string -> t
-  val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
-  val insert: int * string * t -> t
   val toString: t -> string
+  val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
+
+  val insert: int * string * t -> t
+
+  (* The append and appendLine function both add a string to the end.
+   * The difference is that append calculates line metadata 
+   * from the given string, while appendLine accepts 
+   * (possibly incorrect) metadata from the caller. *)
+  val append: string * t -> t
+  val appendLine: string * int vector * t -> t
 
   (* This below function verifies that line metadata is as expected,
    * raising an exception if it is different, 
@@ -309,31 +318,37 @@ struct
         else Vector.sub (newVec, idx - oldLen) + oldStrLen))
     end
 
-  fun insLeaf (curIdx, newStr, newVec, rope, oldStr, oldVec) =
+  fun preLeaf (oldStr, oldVec, newStr, newVec) =
+    if isLessThanTarget (oldStr, newStr, oldVec, newVec) then
+      let
+        val str = newStr ^ oldStr
+        val vec = insVecBefore (oldVec, newVec, newStr)
+      in
+        (N0 (str, vec), NoAction)
+      end
+    else
+      let val l2 = L2 (newStr, newVec, oldStr, oldVec)
+      in (l2, AddedNode)
+      end
+
+  fun appLeaf (oldStr, oldVec, newStr, newVec) =
+    if isLessThanTarget (oldStr, newStr, oldVec, newVec) then
+      let
+        val str = oldStr ^ newStr
+        val vec = insVecAfter (oldStr, oldVec, newVec)
+      in
+        (N0 (str, vec), NoAction)
+      end
+    else
+      let val l2 = L2 (oldStr, oldVec, newStr, newVec)
+      in (l2, AddedNode)
+      end
+
+  fun insLeaf (curIdx, newStr, newVec, oldStr, oldVec) =
     if curIdx <= 0 then
-      if isLessThanTarget (oldStr, newStr, oldVec, newVec) then
-        let
-          val str = newStr ^ oldStr
-          val vec = insVecBefore (oldVec, newVec, newStr)
-        in
-          (N0 (str, vec), NoAction)
-        end
-      else
-        let val l2 = L2 (newStr, newVec, oldStr, oldVec)
-        in (l2, AddedNode)
-        end
+      preLeaf (oldStr, oldVec, newStr, newVec)
     else if curIdx >= String.size oldStr then
-      if isLessThanTarget (oldStr, newStr, oldVec, newVec) then
-        let
-          val str = oldStr ^ newStr
-          val vec = insVecAfter (oldStr, oldVec, newVec)
-        in
-          (N0 (str, vec), NoAction)
-        end
-      else
-        let val l2 = L2 (oldStr, oldVec, newStr, newVec)
-        in (l2, AddedNode)
-        end
+      appLeaf (oldStr, oldVec, newStr, newVec)
     else
       (* Need to split in middle of string. *)
       let
@@ -444,43 +459,42 @@ struct
       (node, DeletedNode)
     end
 
+  fun insBalL (l, lms, lmv, newStr, newVec, r, action) =
+    (case action of
+       NoAction =>
+         (case (l, r) of
+            (N0 (s1, v1), N0 (s2, v2)) =>
+              if isLessThanTarget (s1, s2, v1, v2) then
+                insLessThanTarget (s1, s2, v1, v2)
+              else
+                insLMoreThanTarget (lms, newStr, lmv, newVec, l, r, action)
+          | _ => insLMoreThanTarget (lms, newStr, lmv, newVec, l, r, action))
+     | AddedNode => (insN2Left (l, r), action)
+     | DeletedNode => (delN2Left (l, r), action))
+
+  fun insBalR (l, r, action) =
+    (case action of
+       NoAction =>
+         (case (l, r) of
+            (N0 (s1, v1), N0 (s2, v2)) =>
+              if isLessThanTarget (s1, s2, v1, v2) then
+                insLessThanTarget (s1, s2, v1, v2)
+              else
+                (makeN2 (l, r), action)
+          | _ => (makeN2 (l, r), action))
+     | AddedNode => (insN2Right (l, r), action)
+     | DeletedNode => (delN2Right (l, r), action))
+
   fun ins (curIdx, newStr, newVec, rope) =
     case rope of
       N2 (l, lms, lmv, r) =>
         if curIdx < lms then
-          let
-            val (l, action) = ins (curIdx, newStr, newVec, l)
-          in
-            (case action of
-               NoAction =>
-                 (case (l, r) of
-                    (N0 (s1, v1), N0 (s2, v2)) =>
-                      if isLessThanTarget (s1, s2, v1, v2) then
-                        insLessThanTarget (s1, s2, v1, v2)
-                      else
-                        insLMoreThanTarget
-                          (lms, newStr, lmv, newVec, l, r, action)
-                  | _ =>
-                      insLMoreThanTarget
-                        (lms, newStr, lmv, newVec, l, r, action))
-             | AddedNode => (insN2Left (l, r), action)
-             | DeletedNode => (delN2Left (l, r), action))
+          let val (l, action) = ins (curIdx, newStr, newVec, l)
+          in insBalL (l, lms, lmv, newStr, newVec, r, action)
           end
         else
-          let
-            val (r, action) = ins (curIdx - lms, newStr, newVec, r)
-          in
-            (case action of
-               NoAction =>
-                 (case (l, r) of
-                    (N0 (s1, v1), N0 (s2, v2)) =>
-                      if isLessThanTarget (s1, s2, v1, v2) then
-                        insLessThanTarget (s1, s2, v1, v2)
-                      else
-                        (makeN2 (l, r), action)
-                  | _ => (makeN2 (l, r), action))
-             | AddedNode => (insN2Right (l, r), action)
-             | DeletedNode => (delN2Right (l, r), action))
+          let val (r, action) = ins (curIdx - lms, newStr, newVec, r)
+          in insBalR (l, r, action)
           end
     | N1 t =>
         let
@@ -490,8 +504,7 @@ struct
              AddedNode => (insN1 t, action)
            | _ => (N1 t, action))
         end
-    | N0 (oldStr, oldVec) =>
-        insLeaf (curIdx, newStr, newVec, rope, oldStr, oldVec)
+    | N0 (oldStr, oldVec) => insLeaf (curIdx, newStr, newVec, oldStr, oldVec)
     | _ => raise AuxConstructor
 
   fun endInsert (rope, action) =
@@ -506,6 +519,29 @@ struct
       val (rope, action) = ins (index, str, newVec, rope)
     in
       endInsert (rope, action)
+    end
+
+  fun app (newStr, newVec, rope) =
+    case rope of
+      N2 (l, lms, lmv, r) =>
+        let val (r, action) = app (newStr, newVec, r)
+        in insBalR (l, r, action)
+        end
+    | N1 t => app (newStr, newVec, t)
+    | N0 (oldStr, oldVec) => appLeaf (oldStr, oldVec, newStr, newVec)
+    | _ => raise AuxConstructor
+
+  fun append (newStr, rope) =
+    let
+      val newVec = countLineBreaks newStr
+      val (rope, action) = app (newStr, newVec, rope)
+    in
+      endInsert (rope, action)
+    end
+
+  fun appendLine (newStr, newVec, rope) =
+    let val (rope, action) = app (newStr, newVec, rope)
+    in endInsert (rope, action)
     end
 
   fun verifyLines rope =
