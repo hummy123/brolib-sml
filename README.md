@@ -14,22 +14,6 @@ The two files are `rope.sml` and `tiny_rope.sml`.
 
 `tiny_rope.sml` doesn't track line metadata, and is useful when line-queries aren't needed.
 
-Except for those line-based operations marked below, all functions are the same between the two.
+Except for the line-based operations `appendLine` and `foldLines`, all functions are the same between the two (aside from `verifyLines` which is just for testing purposes).
 
-### Examples
-
-#### Initialise
-
-`val rope = Rope.fromString "hello, world!"`
-
-It's best to use a string with a length less than or equal to 1024 for performance reasons. (The point of a rope is to represent a large string using a binary tree that contains smaller pieces.)
-
-#### Convert to string
-
-`val str = Rope.toString rope`
-
-This is a function that is better to avoid.
-
-#### Insert
-
-`Rope.insert(0, "hello, world!")`
+Examples of usage can be found in [`examples.sml`](https://github.com/hummy123/brolib-sml/blob/main/examples.sml).
