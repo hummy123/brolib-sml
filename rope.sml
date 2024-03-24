@@ -5,7 +5,6 @@ sig
 
   val fromString: string -> t
   val toString: t -> string
-  val foldr: ('a * string * int vector -> 'a) * 'a * t -> 'a
 
   (* The caller should not insert in the middle of a \r\n pair,
    * or else line metadata will become invalid. *)
@@ -727,33 +726,59 @@ struct
             val chr = String.sub (str, pos)
             val acc = apply (chr, acc)
           in
-            foldLineCharsTerm (apply, term, pos, str, strSize, acc)
+            foldLineCharsTerm (apply, term, pos + 1, str, strSize, acc)
           end
       | true => acc
     else
       acc
 
-  fun foldLines (apply, term, lineNum, rope, acc) =
+  fun helpFoldLines (apply, term, lineNum, rope, acc) =
     case rope of
       N2 (l, _, lmv, r) =>
         if lineNum < lmv then
           let
-            val acc = foldLines (apply, term, lineNum, rope, acc)
+            val acc = helpFoldLines (apply, term, lineNum, rope, acc)
           in
             if term acc then acc
-            else foldLines (apply, term, lineNum - lmv, r, acc)
+            else helpFoldLines (apply, term, lineNum - lmv, r, acc)
           end
         else
-          foldLines (apply, term, lineNum - lmv, r, acc)
-    | N1 t => foldLines (apply, term, lineNum, t, acc)
+          helpFoldLines (apply, term, lineNum - lmv, r, acc)
+    | N1 t => helpFoldLines (apply, term, lineNum, t, acc)
     | N0 (str, vec) =>
-        let
-          val idx =
-            if Vector.length vec > 0 then Vector.sub (vec, lineNum) else 0
-        in
-          foldLineCharsTerm (apply, term, idx, str, String.size str, acc)
-        end
+        (* We have a few edge cases to handle here. 
+         * 1. If lineNum is 0 or the vector has no elements, 
+         * we should start folding from the start of the string.
+         * 2. Since the vector points to the start of a linebreak 
+         * (which means either \r or \n when either is alone, 
+         * or \r in a \r\n pair),
+         * we have to skip the linebreak or linebreak pair when folding
+         * over the string. That is more intuitive to the user. *)
+        if lineNum < 0 orelse Vector.length vec = 0 then
+          foldLineCharsTerm (apply, term, 0, str, String.size str, acc)
+        else
+          let
+            val idx = Vector.sub (vec, lineNum)
+          in
+            if idx + 1 < String.size str then
+              let
+                val chr = String.sub (str, idx)
+                val nextChr = String.sub (str, idx + 1)
+              in
+                if chr = #"\r" andalso nextChr = #"\n" then
+                  foldLineCharsTerm
+                    (apply, term, idx + 2, str, String.size str, acc)
+                else
+                  foldLineCharsTerm
+                    (apply, term, idx + 1, str, String.size str, acc)
+              end
+            else
+              acc
+          end
     | _ => raise AuxConstructor
+
+  fun foldLines (apply, term, lineNum, rope, acc) =
+    helpFoldLines (apply, term, lineNum - 1, rope, acc)
 
   fun verifyLines rope =
     foldr
