@@ -20,10 +20,12 @@ Examples of usage can be found in [`examples.sml`](https://github.com/hummy123/b
 
 ## Performance
 
-These two ropes are both quite fast. I compared the OCaml port with the other text data structures in OCaml, and it beat those handily when processing the datasets from [here](https://github.com/josephg/editing-traces) which just test insertion and deletion. It was also faster at performing substrings than the others.
+These two ropes are both quite fast. 
+
+I compared the OCaml port with the other text data structures in OCaml, and it beat those handily when processing the datasets from [here](https://github.com/josephg/editing-traces) which just test insertion and deletion. It was also faster at performing substrings than the others.
 
 I don't know other Standard ML libraries to compare it to, but with MLton, this rope implementation beats [the fastest ropes in Rust](https://github.com/josephg/jumprope-rs#benchmarks) at insertion and deletion quite easily, never going 1 ms in the slowest dataset. 
 
-I don't know how to explain this result, but I assume most of the credit goes to the MLton compiler. It also seems likely that this is slower or string queries, as those Rust implementations use cache-friendly B-Trees as opposed to the binary tree used here.
+I don't know how to explain this result, but I assume most of the credit goes to the MLton compiler. It also seems likely that this is slower on string queries, as those Rust implementations use cache-friendly B-Trees as opposed to the binary tree used here.
 
 (Note to self: worth giving numbers.)
