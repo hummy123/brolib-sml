@@ -8,6 +8,8 @@ sig
   val append: string * t -> t
   val delete: int * int * t -> t
   val toString: t -> string
+  val foldFromIdxTerm: (char * 'a -> 'a) * ('a -> bool) * int * t * 'a -> 'a
+  val foldFromIdx: (char * 'a -> 'a) * int * t * 'a -> 'a
 end
 
 structure TinyRope :> TINY_ROPE =
@@ -20,8 +22,6 @@ struct
   | N3 of t * t * t
 
   exception AuxConstructor
-
-  exception Substring of int
 
   fun foldr (f, state, rope) =
     case rope of
@@ -350,4 +350,39 @@ struct
     let val (rope, didAdd) = del (start, start + length, rope)
     in if didAdd then insRoot rope else delRoot rope
     end
+
+  fun foldStringChars (apply, term, pos, str, strSize, acc) =
+    if pos < strSize then
+      case term acc of
+        false =>
+          let
+            val chr = String.sub (str, pos)
+            val acc = apply (chr, acc)
+          in
+            foldStringChars (apply, term, pos + 1, str, strSize, acc)
+          end
+      | true => acc
+    else
+      acc
+
+  fun foldFromIdxTerm (apply, term, idx, rope, acc) =
+    case rope of
+      N2 (l, lm, r) =>
+        if idx < lm then
+          let
+            val acc = foldFromIdxTerm (apply, term, idx, l, acc)
+          in
+            if term acc then acc
+            else foldFromIdxTerm (apply, term, idx - lm, r, acc)
+          end
+        else
+          foldFromIdxTerm (apply, term, idx - lm, r, acc)
+    | N1 t => foldFromIdxTerm (apply, term, idx, t, acc)
+    | N0 str => foldStringChars (apply, term, idx, str, String.size str, acc)
+    | _ => raise AuxConstructor
+
+  fun noTerm _ = false
+
+  fun foldFromIdx (apply, idx, rope, acc) =
+    foldFromIdxTerm (apply, noTerm, idx, rope, acc)
 end

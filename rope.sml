@@ -22,7 +22,24 @@ sig
    * because then line metadata will become invalid. *)
   val delete: int * int * t -> t
 
-  (* This below function verifies that line metadata is as expected,
+  (* Folds over the characters in the rope starting from the index 
+   * in the second parameter. *)
+  val foldFromIdx: (char * 'a -> 'a) * int * t * 'a -> 'a
+
+  (* Like the foldFromIdx function, but accepts a predicate as the second
+   * argument. 
+   * If the predicate returns true, terminates and returns the result;
+   * else, continues folding until predicate returns true or until remaining
+   * characters have been traversed. *)
+  val foldFromIdxTerm: (char * 'a -> 'a) * ('a -> bool) * int * t * 'a -> 'a
+
+  (* This function folds over the characters in the rope, 
+   * starting from a given line number. 
+   * The second argument is a predicate indicating when to stop folding. *)
+  val foldLines: (char * 'a -> 'a) * ('a -> bool) * int * t * 'a -> 'a
+
+  (* This below function is just for testing. 
+   * It verifies that line metadata is as expected,
    * raising an exception if it is different, 
    * and returning true if it is the same. *)
   val verifyLines: t -> bool
@@ -665,6 +682,78 @@ struct
     let val (rope, didIns) = del (start, start + length, rope)
     in if didIns then insRoot rope else rope
     end
+
+  fun foldStringChars (apply, term, pos, str, strSize, acc) =
+    if pos < strSize then
+      if term acc then
+        acc
+      else
+        let
+          val chr = String.sub (str, pos)
+          val acc = apply (chr, acc)
+        in
+          foldStringChars (apply, term, pos + 1, str, strSize, acc)
+        end
+    else
+      acc
+
+  fun foldFromIdxTerm (apply, term, idx, rope, acc) =
+    case rope of
+      N2 (l, lm, _, r) =>
+        if idx < lm then
+          let
+            val acc = foldFromIdxTerm (apply, term, idx, l, acc)
+          in
+            if term acc then acc
+            else foldFromIdxTerm (apply, term, idx - lm, r, acc)
+          end
+        else
+          foldFromIdxTerm (apply, term, idx - lm, r, acc)
+    | N1 t => foldFromIdxTerm (apply, term, idx, t, acc)
+    | N0 (str, _) =>
+        foldStringChars (apply, term, idx, str, String.size str, acc)
+    | _ => raise AuxConstructor
+
+  fun noTerm _ = false
+
+  fun foldFromIdx (apply, idx, rope, acc) =
+    foldFromIdxTerm (apply, noTerm, idx, rope, acc)
+
+  fun foldLineCharsTerm (apply, term, pos, str, strSize, acc) =
+    if pos < strSize then
+      case term acc of
+        false =>
+          let
+            val chr = String.sub (str, pos)
+            val acc = apply (chr, acc)
+          in
+            foldLineCharsTerm (apply, term, pos, str, strSize, acc)
+          end
+      | true => acc
+    else
+      acc
+
+  fun foldLines (apply, term, lineNum, rope, acc) =
+    case rope of
+      N2 (l, _, lmv, r) =>
+        if lineNum < lmv then
+          let
+            val acc = foldLines (apply, term, lineNum, rope, acc)
+          in
+            if term acc then acc
+            else foldLines (apply, term, lineNum - lmv, r, acc)
+          end
+        else
+          foldLines (apply, term, lineNum - lmv, r, acc)
+    | N1 t => foldLines (apply, term, lineNum, t, acc)
+    | N0 (str, vec) =>
+        let
+          val idx =
+            if Vector.length vec > 0 then Vector.sub (vec, lineNum) else 0
+        in
+          foldLineCharsTerm (apply, term, idx, str, String.size str, acc)
+        end
+    | _ => raise AuxConstructor
 
   fun verifyLines rope =
     foldr
