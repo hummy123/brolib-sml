@@ -26,6 +26,20 @@ I compared the OCaml port with the other text data structures in OCaml, and it b
 
 I don't know other Standard ML libraries to compare it to, but with MLton, this rope implementation beats [the fastest ropes in Rust](https://github.com/josephg/jumprope-rs#benchmarks) at insertion and deletion quite easily, never going 1 ms in the slowest dataset. 
 
-I don't know how to explain this result, but I assume most of the credit goes to the MLton compiler. It also seems likely that this is slower on string queries, as those Rust implementations use cache-friendly B-Trees as opposed to the binary tree used here.
+I don't know how to explain this surprising result, but most of the credit must go to the MLton compiler. This result might also be explained by some entirely untested theories that may or may not be true:
 
-(Note to self: worth giving numbers.)
+- MLton may have optimised the data set (which is pure Standard ML)
+- These benchmarks have an unfair advantage because the datasets are cache-friendly vectors/arrays.
+- These ropes are likely slower on queries (those Rust ropes use B-Trees which are more cache-friendly).
+- The other ropes may track more metadata (like UTF-8/16/32 indices) which would add take a little more time.
+
+Here are some numbers in nanoseconds, running on a single core with a Raspberry Pi 5 that has 8 GB of RAM:
+
+| Dataset         | rope.sml time | tiny_rope.sml time |
+|-----------------|---------------|--------------------|
+| automerge-paper | 10,018 ns     | 9,726 ns           |
+| rustcode        | 79,896 ns     | 74,479 ns          |
+| sveltecomponent | 280,654 ns    | 250,744 ns         |
+| seph-blog1      | 703,868 ns    | 589,501 ns         |
+
+The relevant Rust rope libraries have benchmarks [here](https://github.com/josephg/jumprope-rs/blob/master/README.md#benchmarks) for reference.
