@@ -30,6 +30,16 @@ struct
           foldr f state l
         end
 
+  local
+    fun toListFolder (str, lst) = str :: lst
+    fun toList rope =
+      foldr toListFolder [] rope
+  in
+    fun toString rope =
+      let val lst = toList rope
+      in String.concat lst
+      end
+  end
 
   (* Type used for balancing ropes, used only internally. *)
   datatype treeI =
@@ -133,7 +143,7 @@ struct
          * Ropes don't usually have N3 nodes so the way we accomodate this is:
          * If current index is less than left metadata, use same strategy as
          * recursing to the left as N2 nodes.
-         * Else if current index is less than middle metadata, 
+         * Else if current index is less than (left + middle) metadata, 
          * recurse to middle node while subtracting left metadata.
          * Else, recurse to right node while subtracting (left metadata +
          * middle metadata).
@@ -148,7 +158,7 @@ struct
              TI (l, lm) => TI (N3 (l, lm, m, mm, r, rm), lm + mm + rm)
            | OF (l1, lm1, l2, lm2) =>
                OF (N2 (l1, lm1, l2, lm2), lm1 + lm2, N2 (m, mm, r, rm), mm + rm))
-        else if curIdx < mm then
+        else if curIdx < (lm + mm) then
           (case ins (curIdx - lm, newStr, m) of
              TI (m, mm) => TI (N3 (l, lm, m, mm, r, rm), lm + mm + rm)
            | OF (m1, mm1, m2, mm2) =>

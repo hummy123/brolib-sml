@@ -7,7 +7,7 @@ sig
   val insert: int * string * t -> t
   val append: string * t -> t
   val delete: int * int * t -> t
-  val toString: t -> string list
+  val toString: t -> string
   val foldFromIdxTerm: (char * 'a -> 'a) * ('a -> bool) * int * t * 'a -> 'a
   val foldFromIdx: (char * 'a -> 'a) * int * t * 'a -> 'a
 end
@@ -33,9 +33,15 @@ struct
     | N0 s => f (state, s)
     | _ => raise AuxConstructor
 
-  fun toStringFolder (acc, str) = str :: acc
-  fun toString rope =
-    foldr (toStringFolder, [], rope)
+  local
+    fun toListFolder (acc, str) = str :: acc
+    fun toList rope = foldr (toListFolder, [], rope)
+  in
+    fun toString rope =
+      let val lst = toList rope
+      in String.concat lst
+      end
+  end
 
   datatype balance = AddedNode | DeletedNode | NoAction
 

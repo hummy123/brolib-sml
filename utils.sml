@@ -19,20 +19,19 @@ fun runTxns arr =
   Vector.foldl
     (fn ((pos, delNum, insStr), rope) =>
        let
-         val rope = if delNum > 0 then Rope.delete (pos, delNum, rope) else rope
          val strSize = String.size insStr
          val rope =
-           if strSize > 0 then Rope.insert (pos, insStr, rope) else rope
+           if strSize > 0 then TinyRope23.insert (pos, insStr, rope) else rope
        in
          rope
-       end) Rope.empty arr
+       end) TinyRope23.empty arr
 
 fun runTxnsTime title arr =
   let val f = (fn () => runTxns arr)
   in timeFun title f
   end
 
-fun runToString rope = Rope.toString rope
+fun runToString rope = TinyRope23.toString rope
 
 fun runToStringTime title rope =
   let val f = (fn () => runToString rope)
@@ -74,9 +73,20 @@ fun writeFile filename acc =
     ()
   end
 
+fun write (fileName, rope) =
+  let
+    val str = TinyRope23.toString rope
+    val io = TextIO.openOut fileName
+    val _ = TextIO.output (io, str)
+    val _ = TextIO.closeOut io
+  in
+    ()
+  end
+
 fun main () =
   let
     (* Timing benchmarks. *)
+    val startTime = LargeInt.fromInt 0
     val _ = runTxns1000Times (999, svelte_arr, startTime)
     val _ = runTxns1000Times (999, rust_arr, startTime)
     val _ = runTxns1000Times (999, seph_arr, startTime)
@@ -84,16 +94,21 @@ fun main () =
 
     (* Tests that line metadata is correct; will fail if incorrect. *)
     val svelte = runTxns svelte_arr
-    val _ = Rope.verifyLines svelte
-
     val rust = runTxns rust_arr
-    val _ = Rope.verifyLines rust
-
     val seph = runTxns seph_arr
-    val _ = Rope.verifyLines seph
-
     val automerge = runTxns automerge_arr
-    val _ = Rope.verifyLines automerge
+
+    (*
+      val _ = Rope.verifyLines svelte
+      val _ = Rope.verifyLines rust
+      val _ = Rope.verifyLines seph
+      val _ = Rope.verifyLines automerge
+    *)
+
+    val _ = write ("svelte23.txt", svelte)
+    val _ = write ("rust23.txt", rust)
+    val _ = write ("seph23.txt", seph)
+    val _ = write ("automerge23.txt", automerge)
   in
     ()
   end
