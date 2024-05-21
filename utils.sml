@@ -1,4 +1,4 @@
-fun timeFun title f =
+fun timeFun (title, f) =
   let
     val title = String.concat ["Starting ", title, "..."]
     val _ = (print title)
@@ -19,20 +19,20 @@ fun runTxns arr =
   Vector.foldl
     (fn ((pos, delNum, insStr), rope) =>
        let
-         val rope = if delNum > 0 then Rope.delete (pos, delNum, rope) else rope
+         val rope = if delNum > 0 then TinyRope.delete (pos, delNum, rope) else rope
          val strSize = String.size insStr
          val rope =
-           if strSize > 0 then Rope.insert (pos, insStr, rope) else rope
+           if strSize > 0 then TinyRope.insert (pos, insStr, rope) else rope
        in
          rope
-       end) Rope.empty arr
+       end) TinyRope.empty arr
 
 fun runTxnsTime title arr =
   let val f = (fn () => runTxns arr)
   in timeFun title f
   end
 
-fun runToString rope = Rope.toString rope
+fun runToString rope = TinyRope.toString rope
 
 fun runToStringTime title rope =
   let val f = (fn () => runToString rope)
@@ -74,29 +74,50 @@ fun writeFile filename acc =
     ()
   end
 
+fun timeFun (title, f) = 
+  let
+    val title = String.concat ["Starting ", title, "..."]
+    val _ = (print title)
+    val startTime = Time.now ()
+    val startTime = Time.toNanoseconds startTime
+    val x = f ()
+    val endTime = Time.now ()
+    val endTime = Time.toNanoseconds endTime
+    val timeDiff = endTime - startTime
+    val timeDiff = LargeInt.toString timeDiff
+    val timeTook = String.concat ["took ", timeDiff, " nanoseconds\n"]
+    val _ = (print timeTook)
+  in
+    x
+  end
+
+fun appendMany (ctr, limit, rope) =
+  if ctr = limit then rope
+  else
+    let
+      val rope = TinyRope.append ("hello, world!", rope)
+    in
+      appendMany (ctr + 1, limit, rope)
+    end
+
+val closure = fn () =>
+   (appendMany (0, 2410, TinyRope.empty))
+
+fun closure2 rope = fn () =>
+  TinyRope.toString rope
+
+fun loop () = loop ()
+
 fun main () =
   let
-    (* Timing benchmarks. *)
-    val startTime = LargeInt.fromInt 0
-    val _ = runTxns1000Times (999, svelte_arr, startTime)
-    val _ = runTxns1000Times (999, rust_arr, startTime)
-    val _ = runTxns1000Times (999, seph_arr, startTime)
-    val _ = runTxns1000Times (999, automerge_arr, startTime)
-
-    (* Tests that line metadata is correct; will fail if incorrect. *)
-    val svelte = runTxns svelte_arr
-    val _ = Rope.verifyLines svelte
-
-    val rust = runTxns rust_arr
-    val _ = Rope.verifyLines rust
-
-    val seph = runTxns seph_arr
-    val _ = Rope.verifyLines seph
-
-    val automerge = runTxns automerge_arr
-    val _ = Rope.verifyLines automerge
+    val rope =
+      timeFun("tiny_rope append : ", closure)
+    val str = timeFun ("tiny_rope toString: ", closure2 rope)
+    val str = String.concat str
+    val io = TextIO.openOut "hello.txt"
+    val _ = TextIO.output (io, str)
   in
-    ()
+     ()
   end
 
 val _ = main ()

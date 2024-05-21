@@ -1,14 +1,5 @@
 $(SML_LIB)/basis/basis.mlb
 
-ann
-  "allowVectorExps true"
-in
-  svelte.sml
-  rust.sml
-  seph.sml
-  automerge.sml
-end
-
 tiny_rope.sml
 rope.sml
 utils.sml
