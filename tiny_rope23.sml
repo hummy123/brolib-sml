@@ -6,6 +6,31 @@ struct
   | N2 of t * int * t * int
   | N3 of t * int * t * int * t * int
 
+  fun foldl f state rope =
+    case rope of
+      Leaf str => f (str, state)
+    | N2 (l, _, r, _) => let val state = foldl f state l in foldl f state r end
+    | N3 (l, _, m, _, r, _) =>
+        let
+          val state = foldl f state l
+          val state = foldl f state m
+        in
+          foldl f state r
+        end
+
+  fun foldr f state rope =
+    case rope of
+      Leaf str => f (str, state)
+    | N2 (l, _, r, _) => let val state = foldr f state r in foldr f state l end
+    | N3 (l, _, m, _, r, _) =>
+        let
+          val state = foldr f state r
+          val state = foldr f state m
+        in
+          foldr f state l
+        end
+
+
   (* Type used for balancing ropes, used only internally. *)
   datatype treeI =
     TI of t * int
@@ -59,12 +84,11 @@ struct
             val leftString = sub1 ^ newStr
           in
             OF
-              (N2
-                 ( Leaf leftString
-                 , String.size leftString
-                 , sub2
-                 , String.size sub2
-                 ))
+              ( Leaf leftString
+              , String.size leftString
+              , Leaf sub2
+              , String.size sub2
+              )
           end
         else if
           ((String.size oldStr) - curIdx) + String.size newStr <= targetLength
@@ -73,13 +97,18 @@ struct
             val rightString = newStr ^ sub2
           in
             OF
-              (N2 (sub1, String.size sub1, rightString, String.size rightString))
+              ( Leaf sub1
+              , String.size sub1
+              , Leaf rightString
+              , String.size rightString
+              )
           end
         else
           let
-            val left = N2 (sub1, String.size sub1, newStr, String.size newStr)
+            val left =
+              N2 (Leaf sub1, String.size sub1, Leaf newStr, String.size newStr)
             val leftSize = String.size sub1 + String.size newStr
-            val right = N2 (sub2, String.size sub2, empty, 0)
+            val right = N2 (Leaf sub2, String.size sub2, empty, 0)
             val rightSize = String.size sub2
           in
             OF (left, leftSize, right, rightSize)
@@ -116,23 +145,23 @@ struct
          *)
         if curIdx < lm then
           (case ins (curIdx, newStr, l) of
-             TI (l, lm) => TI (N2 (l, lm, m, mm, r, rm))
+             TI (l, lm) => TI (N3 (l, lm, m, mm, r, rm), lm + mm + rm)
            | OF (l1, lm1, l2, lm2) =>
                OF (N2 (l1, lm1, l2, lm2), lm1 + lm2, N2 (m, mm, r, rm), mm + rm))
         else if curIdx < mm then
           (case ins (curIdx - lm, newStr, m) of
-             TI (m, mm) => TI (N3 (l, lm, m, mm, r, rm))
+             TI (m, mm) => TI (N3 (l, lm, m, mm, r, rm), lm + mm + rm)
            | OF (m1, mm1, m2, mm2) =>
                OF (N2 (l, lm, m1, mm1), lm + mm1, N2 (m2, mm2, r, rm), mm2 + rm))
         else
           (case ins (curIdx - (lm + mm), newStr, r) of
-             TI (r, rm) => TI (N3 (l, lm, m, mm, r, rm))
+             TI (r, rm) => TI (N3 (l, lm, m, mm, r, rm), lm + mm + rm)
            | OF (r1, rm1, r2, rm2) =>
-               OF (N2 (l, lm, m, mm), lm + mm, N2 (r1, rm1, r2, rm2)))
+               OF (N2 (l, lm, m, mm), lm + mm, N2 (r1, rm1, r2, rm2), rm1 + rm2))
     | Leaf oldStr => insLeaf (curIdx, newStr, oldStr)
 
-  fun insRoot (TI t) = t
-    | insRoot OF (l, lm, r, rm) = N2 (l, lm, r, rm)
+  fun insRoot (TI (t, _)) = t
+    | insRoot (OF (l, lm, r, rm)) = N2 (l, lm, r, rm)
 
   fun insert (idx, newStr, rope) =
     insRoot (ins (idx, newStr, rope))
