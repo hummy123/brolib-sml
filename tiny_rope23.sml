@@ -175,4 +175,109 @@ struct
 
   fun insert (idx, newStr, rope) =
     insRoot (ins (idx, newStr, rope))
+
+  datatype treeD = TD of t | UF of t
+
+  exception RopeDeleteError
+
+  fun node21 (TD t1, t2) =
+        let val tree = N2 (t1, size t1, t2, size t2)
+        in TD (tree)
+        end
+    | node21 (UF t1, N2 (t2, t2m, t3, t3m)) =
+        let val tree = N3 (t1, size t1, t2, t2m, t3, t3m)
+        in UF (tree)
+        end
+    | node21 (UF t1, N3 (t2, t2m, t3, t3m, t4, t4m)) =
+        let
+          val t1m = size t1
+          val left = N2 (t1, t1m, t2, t2m)
+          val right = N2 (t3, t3m, t4, t4m)
+          val tree = N2 (left, t1m + t2m, right, t3m + t4m)
+        in
+          TD (tree)
+        end
+    | node21 _ = raise RopeDeleteError
+
+  fun node22 (t1, t1m, TD t2) =
+        TD (N2 (t1, t1m, t2, size t2))
+    | node22 (N2 (t1, t1m, t2, t2m), _, UF t3) =
+        UF (N3 (t1, t1m, t2, t2m, t3, size t3))
+    | node22 (N3 (t1, t1m, t2, t2m, t3, t3m), _, UF t4) =
+        let
+          val t4m = size t4
+        in
+          TD (N2
+            (N2 (t1, t1m, t2, t2m), t1m + t2m, N2 (t3, t3m, t4, t4m), t3m + t4m))
+        end
+    | node22 _ = raise RopeDeleteError
+
+  fun node31 (TD t1, t2, t2m, t3, t3m) =
+        TD (N3 (t1, size t1, t2, t2m, t3, t3m))
+    | node31 (UF t1, N2 (t2, t2m, t3, t3m), _, t4, t4m) =
+        let
+          val t1m = size t1
+          val left = N3 (t1, t1m, t2, t2m, t3, t3m)
+          val leftSize = t1m + t2m + t3m
+          val inner = N2 (left, leftSize, t4, t4m)
+        in
+          TD inner
+        end
+    | node31 (UF t1, N3 (t2, t2m, t3, t3m, t4, t4m), _, t5, t5m) =
+        let
+          val t1m = size t1
+          val left = N2 (t1, t1m, t2, t2m)
+          val leftSize = t1m + t2m
+
+          val middle = N2 (t3, t3m, t4, t4m)
+          val middleSize = t3m + t4m
+
+          val inner = N3 (left, leftSize, middle, middleSize, t5, t5m)
+        in
+          TD inner
+        end
+    | node31 _ = raise RopeDeleteError
+
+  fun node32 (t1, t1m, TD t2, t3) =
+        TD (N3 (t1, t1m, t2, size t2, t3, size t3))
+    | node32 (t1, t1m, UF t2, N2 (t3, t3m, t4, t4m)) =
+        let
+          val t2m = size t2
+          val right = N3 (t2, t2m, t3, t3m, t4, t4m)
+          val inner = N2 (t1, t1m, right, t2m + t3m + t4m)
+        in
+          TD inner
+        end
+    | node32 (t1, t1m, UF t2, N3 (t3, t3m, t4, t4m, t5, t5m)) =
+        let
+          val t2m = size t2
+          val mid = N2 (t2, t2m, t3, t3m)
+          val right = N2 (t4, t4m, t5, t5m)
+          val inner = N3 (t1, t1m, mid, t2m + t3m, right, t4m + t5m)
+        in
+          TD inner
+        end
+    | node32 _ = raise RopeDeleteError
+
+  fun node33 (t1, t1m, t2, t2m, TD t3) =
+        TD (N3 (t1, t1m, t2, t2m, t3, size t3))
+    | node33 (t1, t1m, N2 (t2, t2m, t3, t3m), _, UF t4) =
+        let val t4m = size t4
+        in TD (N2 (t1, t1m, N3 (t2, t2m, t3, t3m, t4, t4m), t2m + t3m + t4m))
+        end
+    | node33 (t1, t1m, N3 (t2, t2m, t3, t3m, t4, t4m), _, UF t5) =
+        let
+          val t5m = size t4
+        in
+          TD (N3
+            ( t1
+            , t1m
+            , N2 (t2, t2m, t3, t3m)
+            , t2m + t3m
+            , N2 (t4, t4m, t5, t5m)
+            , t4m + t5m
+            ))
+        end
+    | node33 _ = raise RopeDeleteError
+
 end
