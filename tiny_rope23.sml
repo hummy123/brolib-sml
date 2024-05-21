@@ -1,9 +1,19 @@
 structure TinyRope23 =
 struct
+  (* Type of ropes. *)
   datatype t =
     Leaf of string
   | N2 of t * int * t * int
   | N3 of t * int * t * int * t * int
+
+  (* Type used for balancing ropes, used only internally. *)
+  datatype treeI =
+    TI of t * int
+  | OF of t * int * t * int
+
+  val targetLength = 1024
+  val empty = Leaf ""
+  fun fromString string = Leaf string
 
   fun size rope =
     case rope of
@@ -11,7 +21,70 @@ struct
     | N2 (_, lm, _, rm) => rm + rm
     | N3 (_, lm, _, mm, _, rm) => lm + mm + rm
 
-  datatype treeI = TI of t * int | OF of t * int * t * int
+  fun isLessThanTarget (str1, str2) =
+    String.size str1 + String.size str2 <= targetLength
+
+  fun insLeaf (curIdx, newStr, oldStr) =
+    if curIdx <= 0 then
+      if isLessThanTarget (oldStr, newStr) then
+        let val str = newStr ^ oldStr
+        in TI (Leaf str, String.size str)
+        end
+      else
+        OF (Leaf newStr, String.size newStr, Leaf oldStr, String.size oldStr)
+    else if curIdx >= String.size oldStr then
+      if isLessThanTarget (oldStr, newStr) then
+        let val str = oldStr ^ newStr
+        in TI (Leaf str, String.size str)
+        end
+      else
+        OF (Leaf oldStr, String.size oldStr, Leaf newStr, String.size newStr)
+    else
+      (* Need to split in middle of string. *)
+      let
+        val sub1 = String.substring (oldStr, 0, curIdx)
+        val sub2Len = String.size oldStr - curIdx
+        val sub2 = String.substring (oldStr, curIdx, sub2Len)
+      in
+        if
+          isLessThanTarget (oldStr, newStr)
+        then
+          let val str = sub1 ^ newStr ^ sub2
+          in TI (Leaf str, String.size str)
+          end
+        else if
+          curIdx + String.size newStr <= targetLength
+        then
+          let
+            val leftString = sub1 ^ newStr
+          in
+            OF
+              (N2
+                 ( Leaf leftString
+                 , String.size leftString
+                 , sub2
+                 , String.size sub2
+                 ))
+          end
+        else if
+          ((String.size oldStr) - curIdx) + String.size newStr <= targetLength
+        then
+          let
+            val rightString = newStr ^ sub2
+          in
+            OF
+              (N2 (sub1, String.size sub1, rightString, String.size rightString))
+          end
+        else
+          let
+            val left = N2 (sub1, String.size sub1, newStr, String.size newStr)
+            val leftSize = String.size sub1 + String.size newStr
+            val right = N2 (sub2, String.size sub2, empty, 0)
+            val rightSize = String.size sub2
+          in
+            OF (left, leftSize, right, rightSize)
+          end
+      end
 
   fun ins (curIdx, newStr, rope) =
     case rope of
@@ -56,6 +129,7 @@ struct
              TI (r, rm) => TI (N3 (l, lm, m, mm, r, rm))
            | OF (r1, rm1, r2, rm2) =>
                OF (N2 (l, lm, m, mm), lm + mm, N2 (r1, rm1, r2, rm2)))
+    | Leaf oldStr => insLeaf (curIdx, newStr, oldStr)
 
   fun insRoot (TI t) = t
     | insRoot OF (l, lm, r, rm) = N2 (l, lm, r, rm)
