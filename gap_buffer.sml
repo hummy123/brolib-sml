@@ -36,15 +36,6 @@ struct
   fun isThreeLessThanTarget (s1, s2, s3) =
     String.size s1 + String.size s2 + String.size s3 <= targetLength
 
-  local
-    fun helpCalcIndex (left, total) =
-      case left of
-        [] => total
-      | hd :: tail => helpCalcIndex (tail, total + String.size hd)
-  in
-    fun calcIndex left = helpCalcIndex (left, 0)
-  end
-
   fun consLeft (curIdx, newString, left, right) =
     { idx = curIdx + String.size newString
     , left = newString :: left
@@ -69,6 +60,20 @@ struct
            | [] => consLeft (curIdx, newString, left, right))
     | [] => consLeft (curIdx, newString, left, right)
 
+  fun joinEndOfLeft (newString, left) =
+    case left of
+      hd :: tail =>
+        if isLessThanTarget (newString, hd) then (hd ^ newString) :: tail
+        else newString :: left
+    | [] => newString :: left
+
+  fun joinStartOfRight (newString, right) =
+    case right of
+      hd :: tail =>
+        if isLessThanTarget (newString, hd) then (newString ^ hd) :: tail
+        else newString :: right
+    | [] => newString :: right
+
   fun ins (idx, newString, curIdx, left, right) : t =
     if curIdx = idx then
       preferInsertLeft (curIdx, newString, left, right)
@@ -87,7 +92,7 @@ struct
             then
               (* The requested index is prior to the string on the left,
                * so move leftward one string. *)
-              ins (idx, newString, prevIdx, tail, hd :: right)
+              ins (idx, newString, prevIdx, tail, joinStartOfRight (hd, right))
             else
               (* The requested index is either:
                *  - At the start of the left string
@@ -96,13 +101,27 @@ struct
               idx = prevIdx
             then
               (* At start of string. *)
-              if isLessThanTarget (newString, hd) then
-                { idx = curIdx + String.size newString
-                , left = (newString ^ hd) :: tail
-                , right = right
-                }
-              else
-                {idx = prevIdx, left = tail, right = newString :: hd :: right}
+              { idx = curIdx + String.size newString
+              , right = right
+              , left =
+                  (* These two meant to look reversed, 
+                   * with respect to newString and hd.
+                   *
+                   * The line
+                   *   `newString ^ hd`
+                   * places the contents of newString before hd,
+                   * and the line
+                   *   `hd :: newString`
+                   * in a zipper also places newString before hd.
+                   *
+                   * Using `newString ^ hd` with `newString :: hd` gives
+                   * different contents in the case of a zipper.
+                   * *)
+                  if isLessThanTarget (newString, hd) then
+                    (newString ^ hd) :: tail
+                  else
+                    hd :: newString :: tail
+              }
             else
               (* In middle of string. *)
               let
@@ -119,7 +138,7 @@ struct
                 else if isLessThanTarget (sub1, newString) then
                   { idx = prevIdx + String.size sub1 + String.size newString
                   , left = (sub1 ^ newString) :: tail
-                  , right = sub2 :: right
+                  , right = joinStartOfRight (sub2, right)
                   }
                 else if isLessThanTarget (newString, sub2) then
                   { idx = prevIdx + String.size sub1
@@ -142,13 +161,16 @@ struct
             val nextIdx = String.size hd + curIdx
           in
             if idx > nextIdx then
-              ins (idx, newString, nextIdx, hd :: left, tail)
+              ins (idx, newString, nextIdx, joinEndOfLeft (hd, left), tail)
             else if idx = nextIdx then
               (* At end of next string. *)
               if isLessThanTarget (newString, hd) then
                 {idx = curIdx, left = left, right = (hd ^ newString) :: tail}
               else
-                {idx = curIdx, left = left, right = hd :: newString :: tail}
+                { idx = curIdx
+                , left = left
+                , right = hd :: (joinStartOfRight (newString, tail))
+                }
             else
               let
                 val length = idx - curIdx
@@ -166,7 +188,7 @@ struct
                 else if isLessThanTarget (sub1, newString) then
                   { idx = curIdx + String.size sub1 + String.size newString
                   , left = (sub1 ^ newString) :: left
-                  , right = sub2 :: tail
+                  , right = joinStartOfRight (sub2, tail)
                   }
                 else if isLessThanTarget (newString, sub2) then
                   { idx = curIdx + String.size sub1
@@ -176,7 +198,7 @@ struct
                 else
                   { idx = curIdx + String.size sub1 + String.size newString
                   , left = newString :: sub1 :: left
-                  , right = sub2 :: tail
+                  , right = joinStartOfRight (sub2, tail)
                   }
               end
           end
