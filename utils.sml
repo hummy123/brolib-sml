@@ -21,17 +21,46 @@ fun runTxns arr =
        let
          val strSize = String.size insStr
          val rope =
-           if strSize > 0 then TinyRope23.insert (pos, insStr, rope) else rope
+           if strSize > 0 then GapBuffer.insert (pos, insStr, rope) else rope
        in
          rope
-       end) TinyRope23.empty arr
+       end) GapBuffer.empty arr
+
+fun compareTxns arr =
+  Vector.foldli (fn (idx, (pos, delNum, insStr), (rope, gapBuffer)) =>
+    let
+      val strSize = String.size insStr
+
+      val rope = if strSize > 0 then TinyRope.insert (pos, insStr, rope) else
+        rope
+      val gapBuffer = if strSize > 0 then GapBuffer.insert (pos, insStr,
+      gapBuffer) else gapBuffer
+
+      val ropeString = TinyRope.toString rope
+      val gapBufferString = GapBuffer.toString gapBuffer
+    in
+      if ropeString = gapBufferString then
+        (rope, gapBuffer)
+      else
+        let
+          val _ = print ("difference detected at txn number: " ^ (Int.toString idx) ^ "\n")
+          val _ = print "rope string: \n"
+          val _ = print (ropeString ^ "\n")
+          val _ = print "gap string: \n"
+          val _ = print (gapBufferString ^ "\n")
+          val _ = raise Empty
+        in
+          (rope, gapBuffer)
+        end
+    end
+  ) (TinyRope.empty, GapBuffer.empty) arr
 
 fun runTxnsTime title arr =
   let val f = (fn () => runTxns arr)
   in timeFun title f
   end
 
-fun runToString rope = TinyRope23.toString rope
+fun runToString rope = GapBuffer.toString rope
 
 fun runToStringTime title rope =
   let val f = (fn () => runToString rope)
@@ -75,7 +104,7 @@ fun writeFile filename acc =
 
 fun write (fileName, rope) =
   let
-    val str = TinyRope23.toString rope
+    val str = GapBuffer.toString rope
     val io = TextIO.openOut fileName
     val _ = TextIO.output (io, str)
     val _ = TextIO.closeOut io
@@ -83,17 +112,21 @@ fun write (fileName, rope) =
     ()
   end
 
+fun loop () = loop()
+
 fun main () =
   let
     (* Timing benchmarks. *)
+    val _ = compareTxns SvelteComponent.txns
+
     val startTime = LargeInt.fromInt 0
-    val _ = runTxns1000Times (999, svelte_arr, startTime)
+    val _ = runTxns1000Times (999, SvelteComponent.txns, startTime)
     val _ = runTxns1000Times (999, rust_arr, startTime)
     val _ = runTxns1000Times (999, seph_arr, startTime)
     val _ = runTxns1000Times (999, automerge_arr, startTime)
 
     (* Tests that line metadata is correct; will fail if incorrect. *)
-    val svelte = runTxns svelte_arr
+    val svelte = runTxns SvelteComponent.txns
     val rust = runTxns rust_arr
     val seph = runTxns seph_arr
     val automerge = runTxns automerge_arr
@@ -105,12 +138,12 @@ fun main () =
       val _ = Rope.verifyLines automerge
     *)
 
-    val _ = write ("svelte23.txt", svelte)
-    val _ = write ("rust23.txt", rust)
-    val _ = write ("seph23.txt", seph)
-    val _ = write ("automerge23.txt", automerge)
+    val _ = write ("svelte_gap.txt", svelte)
+    val _ = write ("rust23_gap.txt", rust)
+    val _ = write ("seph23_gap.txt", seph)
+    val _ = write ("automerge_gap.txt", automerge)
   in
-    ()
+    loop ()
   end
 
 val _ = main ()
