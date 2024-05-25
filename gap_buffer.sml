@@ -205,4 +205,59 @@ struct
 
   fun insert (idx, newString, buffer: t) =
     ins (idx, newString, #idx buffer, #left buffer, #right buffer)
+
+  fun delRightFromHere (curIdx, finish, right) =
+    case right of
+      hd :: tail =>
+        if curIdx + String.size hd < finish then
+          delRightFromHere (curIdx + String.size hd, finish, tail)
+        else if curIdx + String.size hd > finish then
+          let
+            val newStrStart = finish - curIdx
+            val newStr = String.sub
+              (hd, newStrStart, String.size hd - newStrStart)
+          in
+            newStr :: tail
+          end
+        else
+          (*
+            Else branch implies the following is true:
+              if curIdx + String.size hd = finish then 
+          *)
+          tail
+    | [] => right
+
+  fun del (start, finish, curIdx, left, right) : t =
+    if start > curIdx then
+      (* If start is greater than current index, 
+       * then finish must be greater too. 
+       * Move buffer rightwards until finish is reached, 
+       * and delete along the way. *)
+      raise Empty
+    else if start < curIdx then
+      (* If start is less than current index,
+       * then finish could be either less than or equal/greater 
+       * than the current index. 
+       * We can treat equal/greater than as one case. *)
+      if finish < curIdx then
+        (* Move leftward and delete along the way. *)
+        raise Empty
+      else
+        (* Delete rightward up to finish index,
+         * and then delete leftward until start index.*)
+        raise Empty
+    else
+      (* If start is equal to the current index, 
+       * then only to examine right list. 
+       * Just need to delete until reaching the finish index. *)
+      { idx = curIdx
+      , left = left
+      , right = delRightFromHere (curIdx, finish, right)
+      }
+
+  fun delete (start, length, buffer: t) =
+    if length > 0 then
+      del (start, start + length, #idx buffer, #left buffer, #right buffer)
+    else
+      buffer
 end
