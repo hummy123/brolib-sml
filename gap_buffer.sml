@@ -74,7 +74,7 @@ struct
            | [] => consLeft (curIdx, newString, left, right))
     | [] => consLeft (curIdx, newString, left, right)
 
-  fun insLeftLeaf (prevIdx, idx, newString, curIdx, right, hd, tail) =
+  fun insLeft (prevIdx, idx, newString, curIdx, hd, tail, right) =
     (* The requested index is either:
          *  - At the start of the left string
          *  - In the middle of the left string
@@ -129,7 +129,7 @@ struct
           }
       end
 
-  fun insRightLeaf (nextIdx, idx, newString, curIdx, left, hd, tail) =
+  fun insRight (nextIdx, idx, newString, curIdx, left, hd, tail) =
     if idx = nextIdx then
       (* At end of next string. *)
       { idx = curIdx
@@ -168,6 +168,7 @@ struct
           }
       end
 
+
   fun ins (idx, newString, curIdx, left, right) : t =
     if curIdx = idx then
       preferInsertLeft (curIdx, newString, left, right)
@@ -186,8 +187,7 @@ struct
                * so move leftward one string. *)
               ins (idx, newString, prevIdx, tail, joinStartOfRight (hd, right))
             else
-              (* Call function to insert at the current node in the zipper. *)
-              insLeftLeaf (prevIdx, idx, newString, curIdx, right, hd, tail)
+              insLeft (prevIdx, idx, newString, curIdx, hd, tail, right)
           end
     else
       (* Need to insert to the right. *)
@@ -200,7 +200,7 @@ struct
             if idx > nextIdx then
               ins (idx, newString, nextIdx, joinEndOfLeft (hd, left), tail)
             else
-              insRightLeaf (nextIdx, idx, newString, curIdx, right, hd, tail)
+              insRight (nextIdx, idx, newString, curIdx, left, hd, tail)
           end
 
   fun insert (idx, newString, buffer: t) =

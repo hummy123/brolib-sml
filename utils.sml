@@ -88,14 +88,21 @@ fun main () =
     val svelte = runTxnsTime SvelteComponent.txns
     val rust = runTxnsTime RustCode.txns
     val seph = runTxnsTime SephBlog.txns
-    val automerge = runTxnsTime automerge_arr
+    val automerge = runTxnsTime AutomergePaper.txns
 
     (* Tests for correctness; will fail if incorrect. *)
     (** Tests for insertion correctness (compare against rope). **)
     val _ = compareTxns SvelteComponent.txns
+    val _ = print "svelte test passed\n"
+
     val _ = compareTxns RustCode.txns
+    val _ = print "rust test passed\n"
+
     val _ = compareTxns SephBlog.txns
-    val _ = compareTxns automerge_arr
+    val _ = print "seph test passed\n"
+
+    val _ = compareTxns AutomergePaper.txns
+    val _ = print "automerge test passed\n"
 
     (* Tests for line metadata. *)
     (*
@@ -110,7 +117,7 @@ fun main () =
     val _ = write ("out/seph23_gap.txt", seph)
     val _ = write ("out/automerge_gap.txt", automerge)
   in
-    loop ()
+    ()
   end
 
 val _ = main ()
