@@ -27,33 +27,36 @@ fun runTxnsTime arr =
   end
 
 fun compareTxns arr =
-  Vector.foldli (fn (idx, (pos, delNum, insStr), (rope, gapBuffer)) =>
-    let
-      val strSize = String.size insStr
+  Vector.foldli
+    (fn (idx, (pos, delNum, insStr), (rope, gapBuffer)) =>
+       let
+         val strSize = String.size insStr
 
-      val rope = if strSize > 0 then TinyRope.insert (pos, insStr, rope) else
-        rope
-      val gapBuffer = if strSize > 0 then GapBuffer.insert (pos, insStr,
-      gapBuffer) else gapBuffer
+         val rope =
+           if strSize > 0 then TinyRope.insert (pos, insStr, rope) else rope
+         val gapBuffer =
+           if strSize > 0 then GapBuffer.insert (pos, insStr, gapBuffer)
+           else gapBuffer
 
-      val ropeString = TinyRope.toString rope
-      val gapBufferString = GapBuffer.toString gapBuffer
-    in
-      if ropeString = gapBufferString then
-        (rope, gapBuffer)
-      else
-        let
-          val _ = print ("difference detected at txn number: " ^ (Int.toString idx) ^ "\n")
-          val _ = print "rope string: \n"
-          val _ = print (ropeString ^ "\n")
-          val _ = print "gap string: \n"
-          val _ = print (gapBufferString ^ "\n")
-          val _ = raise Empty
-        in
-          (rope, gapBuffer)
-        end
-    end
-  ) (TinyRope.empty, GapBuffer.empty) arr
+         val ropeString = TinyRope.toString rope
+         val gapBufferString = GapBuffer.toString gapBuffer
+       in
+         if ropeString = gapBufferString then
+           (rope, gapBuffer)
+         else
+           let
+             val _ = print
+               ("difference detected at txn number: " ^ (Int.toString idx)
+                ^ "\n")
+             val _ = print "rope string: \n"
+             val _ = print (ropeString ^ "\n")
+             val _ = print "gap string: \n"
+             val _ = print (gapBufferString ^ "\n")
+             val _ = raise Empty
+           in
+             (rope, gapBuffer)
+           end
+       end) (TinyRope.empty, GapBuffer.empty) arr
 
 fun runToString rope = GapBuffer.toString rope
 
@@ -77,26 +80,21 @@ fun write (fileName, rope) =
     ()
   end
 
-fun loop () = loop()
+fun loop () = loop ()
 
 fun main () =
   let
     (* Timing benchmarks. *)
-    val _ = runTxnsTime SvelteComponent.txns
-    val _ = runTxnsTime rust_arr
-    val _ = runTxnsTime seph_arr
-    val _ = runTxnsTime automerge_arr
+    val svelte = runTxnsTime SvelteComponent.txns
+    val rust = runTxnsTime RustCode.txns
+    val seph = runTxnsTime SephBlog.txns
+    val automerge = runTxnsTime automerge_arr
 
     (* Tests for correctness; will fail if incorrect. *)
-    val svelte = runTxns SvelteComponent.txns
-    val rust = runTxns rust_arr
-    val seph = runTxns seph_arr
-    val automerge = runTxns automerge_arr
-
-    (* Tests for insertion correctness (compare against rope). *)
+    (** Tests for insertion correctness (compare against rope). **)
     val _ = compareTxns SvelteComponent.txns
-    val _ = compareTxns rust_arr
-    val _ = compareTxns seph_arr
+    val _ = compareTxns RustCode.txns
+    val _ = compareTxns SephBlog.txns
     val _ = compareTxns automerge_arr
 
     (* Tests for line metadata. *)
@@ -107,10 +105,10 @@ fun main () =
       val _ = Rope.verifyLines automerge
     *)
 
-    val _ = write ("svelte_gap.txt", svelte)
-    val _ = write ("rust23_gap.txt", rust)
-    val _ = write ("seph23_gap.txt", seph)
-    val _ = write ("automerge_gap.txt", automerge)
+    val _ = write ("out/svelte_gap.txt", svelte)
+    val _ = write ("out/rust23_gap.txt", rust)
+    val _ = write ("out/seph23_gap.txt", seph)
+    val _ = write ("out/automerge_gap.txt", automerge)
   in
     loop ()
   end
