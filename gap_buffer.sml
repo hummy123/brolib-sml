@@ -42,6 +42,20 @@ struct
     , right = right
     }
 
+  fun joinEndOfLeft (newString, left) =
+    case left of
+      hd :: tail =>
+        if isLessThanTarget (newString, hd) then (hd ^ newString) :: tail
+        else newString :: left
+    | [] => newString :: left
+
+  fun joinStartOfRight (newString, right) =
+    case right of
+      hd :: tail =>
+        if isLessThanTarget (newString, hd) then (newString ^ hd) :: tail
+        else newString :: right
+    | [] => newString :: right
+
   fun preferInsertLeft (curIdx, newString, left, right) =
     case left of
       hd :: tail =>
@@ -60,19 +74,99 @@ struct
            | [] => consLeft (curIdx, newString, left, right))
     | [] => consLeft (curIdx, newString, left, right)
 
-  fun joinEndOfLeft (newString, left) =
-    case left of
-      hd :: tail =>
-        if isLessThanTarget (newString, hd) then (hd ^ newString) :: tail
-        else newString :: left
-    | [] => newString :: left
+  fun insLeftLeaf (prevIdx, idx, newString, curIdx, right, hd, tail) =
+    (* The requested index is either:
+         *  - At the start of the left string
+         *  - In the middle of the left string
+         *  Find out which and split the middle of the string if necessary. *)
+    if idx = prevIdx then
+      (* At start of string. *)
+      { idx = curIdx + String.size newString
+      , right = right
+      , left =
+          (* These two meant to look reversed, 
+           * with respect to newString and hd.
+           *
+           * The line
+           *   `newString ^ hd`
+           * places the contents of newString before hd,
+           * and the line
+           *   `hd :: newString`
+           * in a zipper also places newString before hd.
+           *
+           * Using `newString ^ hd` with `newString :: hd` gives
+           * different contents in the case of a zipper.
+           * *)
+          if isLessThanTarget (newString, hd) then (newString ^ hd) :: tail
+          else hd :: newString :: tail
+      }
+    else
+      (* In middle of string. *)
+      let
+        val length = idx - prevIdx
+        val sub1 = String.substring (hd, 0, length)
+        val sub2 = String.substring (hd, length, String.size hd - length)
+      in
+        if isThreeLessThanTarget (sub1, newString, sub2) then
+          { idx = curIdx + String.size newString
+          , left = (sub1 ^ newString ^ sub2) :: tail
+          , right = right
+          }
+        else if isLessThanTarget (sub1, newString) then
+          { idx = prevIdx + String.size sub1 + String.size newString
+          , left = (sub1 ^ newString) :: tail
+          , right = joinStartOfRight (sub2, right)
+          }
+        else if isLessThanTarget (newString, sub2) then
+          { idx = prevIdx + String.size sub1
+          , left = joinEndOfLeft (sub1, tail)
+          , right = (newString ^ sub2) :: right
+          }
+        else
+          { idx = prevIdx
+          , left = tail
+          , right = sub1 :: newString :: sub2 :: right
+          }
+      end
 
-  fun joinStartOfRight (newString, right) =
-    case right of
-      hd :: tail =>
-        if isLessThanTarget (newString, hd) then (newString ^ hd) :: tail
-        else newString :: right
-    | [] => newString :: right
+  fun insRightLeaf (nextIdx, idx, newString, curIdx, left, hd, tail) =
+    if idx = nextIdx then
+      (* At end of next string. *)
+      { idx = curIdx
+      , left = left
+      , right =
+          if isLessThanTarget (newString, hd) then (hd ^ newString) :: tail
+          else hd :: (joinStartOfRight (newString, tail))
+      }
+    else
+      let
+        val length = idx - curIdx
+        val sub1 = String.substring (hd, 0, length)
+        val sub2 = String.substring (hd, length, String.size hd - length)
+      in
+        if isThreeLessThanTarget (sub1, newString, sub2) then
+          { idx =
+              curIdx + String.size sub1 + String.size newString
+              + String.size sub2
+          , left = (sub1 ^ newString ^ sub2) :: left
+          , right = tail
+          }
+        else if isLessThanTarget (sub1, newString) then
+          { idx = curIdx + String.size sub1 + String.size newString
+          , left = (sub1 ^ newString) :: left
+          , right = joinStartOfRight (sub2, tail)
+          }
+        else if isLessThanTarget (newString, sub2) then
+          { idx = curIdx + String.size sub1
+          , left = sub1 :: left
+          , right = (newString ^ sub2) :: tail
+          }
+        else
+          { idx = curIdx + String.size sub1 + String.size newString
+          , left = newString :: sub1 :: left
+          , right = joinStartOfRight (sub2, tail)
+          }
+      end
 
   fun ins (idx, newString, curIdx, left, right) : t =
     if curIdx = idx then
@@ -87,70 +181,13 @@ struct
           let
             val prevIdx = curIdx - String.size hd
           in
-            if
-              idx < prevIdx
-            then
+            if idx < prevIdx then
               (* The requested index is prior to the string on the left,
                * so move leftward one string. *)
               ins (idx, newString, prevIdx, tail, joinStartOfRight (hd, right))
             else
-              (* The requested index is either:
-               *  - At the start of the left string
-               *  - In the middle of the left string
-               *  Find out which and split the middle of the string if necessary. *) if
-              idx = prevIdx
-            then
-              (* At start of string. *)
-              { idx = curIdx + String.size newString
-              , right = right
-              , left =
-                  (* These two meant to look reversed, 
-                   * with respect to newString and hd.
-                   *
-                   * The line
-                   *   `newString ^ hd`
-                   * places the contents of newString before hd,
-                   * and the line
-                   *   `hd :: newString`
-                   * in a zipper also places newString before hd.
-                   *
-                   * Using `newString ^ hd` with `newString :: hd` gives
-                   * different contents in the case of a zipper.
-                   * *)
-                  if isLessThanTarget (newString, hd) then
-                    (newString ^ hd) :: tail
-                  else
-                    hd :: newString :: tail
-              }
-            else
-              (* In middle of string. *)
-              let
-                val length = idx - prevIdx
-                val sub1 = String.substring (hd, 0, length)
-                val sub2 = String.substring
-                  (hd, length, String.size hd - length)
-              in
-                if isThreeLessThanTarget (sub1, newString, sub2) then
-                  { idx = curIdx + String.size newString
-                  , left = (sub1 ^ newString ^ sub2) :: tail
-                  , right = right
-                  }
-                else if isLessThanTarget (sub1, newString) then
-                  { idx = prevIdx + String.size sub1 + String.size newString
-                  , left = (sub1 ^ newString) :: tail
-                  , right = joinStartOfRight (sub2, right)
-                  }
-                else if isLessThanTarget (newString, sub2) then
-                  { idx = prevIdx + String.size sub1
-                  , left = sub1 :: tail
-                  , right = (newString ^ sub2) :: right
-                  }
-                else
-                  { idx = prevIdx
-                  , left = tail
-                  , right = sub1 :: newString :: sub2 :: right
-                  }
-              end
+              (* Call function to insert at the current node in the zipper. *)
+              insLeftLeaf (prevIdx, idx, newString, curIdx, right, hd, tail)
           end
     else
       (* Need to insert to the right. *)
@@ -162,45 +199,8 @@ struct
           in
             if idx > nextIdx then
               ins (idx, newString, nextIdx, joinEndOfLeft (hd, left), tail)
-            else if idx = nextIdx then
-              (* At end of next string. *)
-              if isLessThanTarget (newString, hd) then
-                {idx = curIdx, left = left, right = (hd ^ newString) :: tail}
-              else
-                { idx = curIdx
-                , left = left
-                , right = hd :: (joinStartOfRight (newString, tail))
-                }
             else
-              let
-                val length = idx - curIdx
-                val sub1 = String.substring (hd, 0, length)
-                val sub2 = String.substring
-                  (hd, length, String.size hd - length)
-              in
-                if isThreeLessThanTarget (sub1, newString, sub2) then
-                  { idx =
-                      curIdx + String.size sub1 + String.size newString
-                      + String.size sub2
-                  , left = (sub1 ^ newString ^ sub2) :: left
-                  , right = tail
-                  }
-                else if isLessThanTarget (sub1, newString) then
-                  { idx = curIdx + String.size sub1 + String.size newString
-                  , left = (sub1 ^ newString) :: left
-                  , right = joinStartOfRight (sub2, tail)
-                  }
-                else if isLessThanTarget (newString, sub2) then
-                  { idx = curIdx + String.size sub1
-                  , left = sub1 :: left
-                  , right = (newString ^ sub2) :: tail
-                  }
-                else
-                  { idx = curIdx + String.size sub1 + String.size newString
-                  , left = newString :: sub1 :: left
-                  , right = joinStartOfRight (sub2, tail)
-                  }
-              end
+              insRightLeaf (nextIdx, idx, newString, curIdx, right, hd, tail)
           end
 
   fun insert (idx, newString, buffer: t) =
