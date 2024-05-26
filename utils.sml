@@ -70,7 +70,7 @@ fun compareTxns arr =
              val _ = print txn
 
              val _ = print "before offending string: \n"
-             val _ = print (TinyRope.toString oldRope )
+             val _ = print (TinyRope.toString oldRope)
              val _ = print "\n"
 
              val _ = print "rope string: \n"
@@ -105,7 +105,62 @@ fun write (fileName, rope) =
     ()
   end
 
-fun loop () = loop ()
+fun runTxnsStats (ins, del, empty, arr) =
+  Vector.foldl
+    (fn ((pos, delNum, insStr), (buffer, lst)) =>
+       let
+         val startTime = Time.now ()
+         val startTime = Time.toMilliseconds startTime
+
+         val buffer = if delNum > 0 then del (pos, delNum, buffer) else buffer
+         val strSize = String.size insStr
+         val buffer = if strSize > 0 then ins (pos, insStr, buffer) else buffer
+
+         val endTime = Time.now ()
+         val endTime = Time.toMilliseconds endTime
+         val timeDiff = endTime - startTime
+
+         val lst = timeDiff :: lst
+       in
+         (buffer, lst)
+       end) (empty, []) arr
+
+fun printListStats (lst, min, max) =
+  case lst of
+    [] =>
+      let
+        val _ = print ("minimum time: " ^ LargeInt.toString min ^ "\n")
+        val _ = print ("maximum time: " ^ LargeInt.toString max ^ "\n")
+        val _ = print "\n"
+      in
+        ()
+      end
+  | hd :: tl =>
+      let
+        val min = LargeInt.min (min, hd)
+        val max = LargeInt.max (max, hd)
+      in
+        printListStats (tl, min, max)
+      end
+
+fun runTxnsAndGetStats (ins, del, empty, arr) =
+  let
+    val (buffer, lst) = runTxnsStats (ins, del, empty, arr)
+    val _ = printListStats (lst, LargeInt.fromInt 1000, LargeInt.fromInt ~1000)
+  in
+    buffer
+  end
+
+fun printBufferStats (title, ins, del, empty) =
+  let
+    val _ = print (title ^ "\n")
+    val _ = runTxnsAndGetStats (ins, del, empty, SvelteComponent.txns)
+    val _ = runTxnsAndGetStats (ins, del, empty, RustCode.txns)
+    val _ = runTxnsAndGetStats (ins, del, empty, SephBlog.txns)
+    val _ = runTxnsAndGetStats (ins, del, empty, AutomergePaper.txns)
+  in
+    ()
+  end
 
 fun main () =
   let
@@ -114,6 +169,19 @@ fun main () =
     val rust = runTxnsTime RustCode.txns
     val seph = runTxnsTime SephBlog.txns
     val automerge = runTxnsTime AutomergePaper.txns
+    val _ = print "\n"
+
+    val _ =
+      printBufferStats
+        ( "GAP BUFFER STATS: "
+        , GapBuffer.insert
+        , GapBuffer.delete
+        , GapBuffer.empty
+        )
+
+    val _ =
+      printBufferStats
+        ("TINY ROPE STATS: ", TinyRope.insert, TinyRope.delete, TinyRope.empty)
 
     (* Tests for correctness; will fail if incorrect. *)
     (** Tests for insertion correctness (compare against rope). **)

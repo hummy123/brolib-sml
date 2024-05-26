@@ -12,8 +12,6 @@ end
 tiny_rope.sml
 rope.sml
 
-tiny_rope23.sml
-
 gap_buffer.sml
 
 utils.sml
