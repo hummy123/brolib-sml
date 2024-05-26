@@ -5,6 +5,7 @@ sig
   val fromString: string -> t
   val toString: t -> string
   val insert: int * string * t -> t
+  val delete: int * int * t -> t
 end
 
 structure GapBuffer: GAP_BUFFER =
@@ -206,26 +207,179 @@ struct
   fun insert (idx, newString, buffer: t) =
     ins (idx, newString, #idx buffer, #left buffer, #right buffer)
 
-  fun delRightFromHere (curIdx, finish, right) =
+  fun deleteRightFromHere (curIdx, finish, right) =
     case right of
       hd :: tail =>
-        if curIdx + String.size hd < finish then
-          delRightFromHere (curIdx + String.size hd, finish, tail)
-        else if curIdx + String.size hd > finish then
-          let
-            val newStrStart = finish - curIdx
-            val newStr = String.sub
-              (hd, newStrStart, String.size hd - newStrStart)
-          in
-            newStr :: tail
-          end
-        else
-          (*
-            Else branch implies the following is true:
-              if curIdx + String.size hd = finish then 
-          *)
-          tail
+        let
+          val nextIdx = curIdx + String.size hd
+        in
+          if nextIdx < finish then
+            deleteRightFromHere (nextIdx, finish, tail)
+          else if nextIdx > finish then
+            let
+              val newStrStart = finish - curIdx
+              val newStr = String.substring
+                (hd, newStrStart, String.size hd - newStrStart)
+            in
+              newStr :: tail
+            end
+          else
+            (* nextIdx = finish
+             * Delete current head but no further. *)
+            tail
+        end
     | [] => right
+
+  fun moveRightAndDelete (start, finish, curIdx, left, right) =
+    case right of
+      hd :: tail =>
+        let
+          val nextIdx = curIdx + String.size hd
+        in
+          if nextIdx < start then
+            (* Keep moving right: haven't reached start yet. *)
+            moveRightAndDelete
+              (start, finish, nextIdx, joinEndOfLeft (hd, left), tail)
+          else if nextIdx > start then
+            if nextIdx < finish then
+              (* Delete the start range contained in this string,
+               * and then continue deleting right. *)
+              let
+                val length = start - curIdx
+                val newString = String.substring (hd, 0, length)
+              in
+                { idx = curIdx + String.size newString
+                , left = joinEndOfLeft (newString, left)
+                , right = deleteRightFromHere (nextIdx, finish, tail)
+                }
+              end
+            else if nextIdx > finish then
+              (* Have to delete from middle of string. *)
+              let
+                val sub1Length = start - curIdx
+                val sub1 = String.substring (hd, 0, sub1Length)
+                val sub2Start = finish - curIdx
+                val sub2 = String.substring
+                  (hd, sub2Start, String.size hd - sub2Start)
+              in
+                { idx = curIdx + sub1Length
+                , left = joinEndOfLeft (sub1, left)
+                , right = joinStartOfRight (sub2, tail)
+                }
+              end
+            else
+              (* nextIdx = finish 
+               * Have to delete from end of this string. *)
+              let
+                val strLength = start - curIdx
+                val str = String.substring (hd, 0, strLength)
+              in
+                { idx = curIdx + strLength
+                , left = joinEndOfLeft (str, left)
+                , right = tail
+                }
+              end
+          else
+            (* nextIdx = start
+             * The start range is contained fully at the next node,
+             * without having to remove part of a string at this node.*)
+            let
+              val newRight = deleteRightFromHere (nextIdx, finish, tail)
+            in
+              { idx = curIdx
+              , left = left
+              , right = joinStartOfRight (hd, newRight)
+              }
+            end
+        end
+    | [] => {idx = curIdx, left = left, right = right}
+
+  fun deleteLeftFromHere (start, curIdx, left, right) =
+    case left of
+      hd :: tail =>
+        let
+          val prevIdx = curIdx - String.size hd
+        in
+          if start < prevIdx then
+            deleteLeftFromHere (start, prevIdx, tail, right)
+          else if start > prevIdx then
+            (* Need to delete from some part of this string. *)
+            let
+              val length = start - prevIdx
+              val newStr = String.substring (hd, 0, length)
+            in
+              { idx = prevIdx
+              , left = tail
+              , right = joinStartOfRight (newStr, right)
+              }
+            end
+          else
+            (* if start = prevIdx 
+             * Need to remove the current node without deleting any further. *)
+            {idx = prevIdx, left = tail, right = right}
+        end
+
+    | [] => {idx = curIdx, left = left, right = right}
+
+  fun deleteFromLeftAndRight (start, finish, curIdx, left, right) =
+    let val right = deleteRightFromHere (curIdx, finish, right)
+    in deleteLeftFromHere (start, curIdx, left, right)
+    end
+
+  fun moveLeftAndDelete (start, finish, curIdx, left, right) =
+    case left of
+      hd :: tail =>
+        let
+          val prevIdx = curIdx - String.size hd
+        in
+          if prevIdx > finish then
+            moveLeftAndDelete
+              (start, finish, prevIdx, tail, joinStartOfRight (hd, right))
+          else if prevIdx < finish then
+            if prevIdx > start then
+              (* Delete from start point of this string, 
+               * and then call function to continue deleting leftward. *)
+              let
+                val hdStart = finish - prevIdx
+                val newHd = String.substring
+                  (hd, hdStart, String.size hd - hdStart)
+                val right = joinStartOfRight (newHd, right)
+              in
+                deleteLeftFromHere (start, prevIdx, tail, right)
+              end
+            else if prevIdx < start then
+              (* We want to delete in the middle of this current string. *)
+              let
+                val sub1Length = start - prevIdx
+                val sub1 = String.substring (hd, 0, sub1Length)
+                val sub2Start = finish - prevIdx
+                val sub2 = String.substring
+                  (hd, sub2Start, String.size hd - sub2Start)
+              in
+                { idx = prevIdx + sub1Length
+                , left = joinEndOfLeft (sub1, tail)
+                , right = joinStartOfRight (sub2, right)
+                }
+              end
+            else
+              (* prevIdx = start 
+               * We want to delete from the start of this string and stop. *)
+              let
+                val strStart = finish - prevIdx
+                val str = String.substring
+                  (hd, strStart, String.size hd - strStart)
+              in
+                { idx = prevIdx
+                , left = tail
+                , right = joinStartOfRight (str, right)
+                }
+              end
+          else
+            (* prevIdx = finish *)
+            deleteLeftFromHere
+              (start, prevIdx, tail, joinStartOfRight (hd, right))
+        end
+    | [] => {idx = curIdx, left = left, right = right}
 
   fun del (start, finish, curIdx, left, right) : t =
     if start > curIdx then
@@ -233,26 +387,26 @@ struct
        * then finish must be greater too. 
        * Move buffer rightwards until finish is reached, 
        * and delete along the way. *)
-      raise Empty
+      moveRightAndDelete (start, finish, curIdx, left, right)
     else if start < curIdx then
       (* If start is less than current index,
        * then finish could be either less than or equal/greater 
        * than the current index. 
        * We can treat equal/greater than as one case. *)
-      if finish < curIdx then
+      if finish <= curIdx then
         (* Move leftward and delete along the way. *)
-        raise Empty
+        moveLeftAndDelete (start, finish, curIdx, left, right)
       else
         (* Delete rightward up to finish index,
          * and then delete leftward until start index.*)
-        raise Empty
+        deleteFromLeftAndRight (start, finish, curIdx, left, right)
     else
       (* If start is equal to the current index, 
-       * then only to examine right list. 
+       * then only examine the right list. 
        * Just need to delete until reaching the finish index. *)
       { idx = curIdx
       , left = left
-      , right = delRightFromHere (curIdx, finish, right)
+      , right = deleteRightFromHere (curIdx, finish, right)
       }
 
   fun delete (start, length, buffer: t) =

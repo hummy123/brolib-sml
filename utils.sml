@@ -2,6 +2,8 @@ fun runTxns arr =
   Vector.foldl
     (fn ((pos, delNum, insStr), rope) =>
        let
+         val rope =
+           if delNum > 0 then GapBuffer.delete (pos, delNum, rope) else rope
          val strSize = String.size insStr
          val rope =
            if strSize > 0 then GapBuffer.insert (pos, insStr, rope) else rope
@@ -30,10 +32,17 @@ fun compareTxns arr =
   Vector.foldli
     (fn (idx, (pos, delNum, insStr), (rope, gapBuffer)) =>
        let
+         val oldRope = rope
          val strSize = String.size insStr
 
          val rope =
+           if delNum > 0 then TinyRope.delete (pos, delNum, rope) else rope
+         val rope =
            if strSize > 0 then TinyRope.insert (pos, insStr, rope) else rope
+
+         val gapBuffer =
+           if delNum > 0 then GapBuffer.delete (pos, delNum, gapBuffer)
+           else gapBuffer
          val gapBuffer =
            if strSize > 0 then GapBuffer.insert (pos, insStr, gapBuffer)
            else gapBuffer
@@ -48,6 +57,22 @@ fun compareTxns arr =
              val _ = print
                ("difference detected at txn number: " ^ (Int.toString idx)
                 ^ "\n")
+             val txn = String.concat
+               [ "offending txn: \n"
+               , "pos: "
+               , Int.toString pos
+               , ", delNum: "
+               , Int.toString delNum
+               , ", insStr: |"
+               , insStr
+               , "|\n"
+               ]
+             val _ = print txn
+
+             val _ = print "before offending string: \n"
+             val _ = print (TinyRope.toString oldRope )
+             val _ = print "\n"
+
              val _ = print "rope string: \n"
              val _ = print (ropeString ^ "\n")
              val _ = print "gap string: \n"
