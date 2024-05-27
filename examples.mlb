@@ -1,6 +1,0 @@
-$(SML_LIB)/basis/basis.mlb
-
-tiny_rope.sml
-tiny_rope23.sml
-rope.sml
-examples.sml
