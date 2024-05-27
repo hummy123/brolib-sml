@@ -1,0 +1,13 @@
+$(SML_LIB)/basis/basis.mlb
+
+ann
+  "allowVectorExps true"
+in
+  svelte.sml
+end
+
+transaction.sml
+run.sml
+
+../src/gap_buffer.sml
+gap_buffer_svelte.sml
