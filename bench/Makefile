@@ -17,4 +17,4 @@ gap_buffer_automerge:
 	mlton gap_buffer_automerge.mlb
 
 clean:
-	rm -f gap_buffer_svelte gap_buffer_rust gap_buffer_svelte gap_buffer_automerge
+	rm -f gap_buffer_svelte gap_buffer_rust gap_buffer_seph gap_buffer_automerge
