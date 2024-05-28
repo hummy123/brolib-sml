@@ -1,0 +1,13 @@
+$(SML_LIB)/basis/basis.mlb
+
+ann
+  "allowVectorExps true"
+in
+  svelte.sml
+end
+
+transaction.sml
+run.sml
+
+../src/tiny_rope.sml
+rope_svelte.sml

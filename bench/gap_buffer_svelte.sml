@@ -5,8 +5,6 @@ struct
   val insert = GapBuffer.insert
   val delete = GapBuffer.delete
   val toString = GapBuffer.toString
-
-  val title = "Svelte"
   val txns = SvelteComponent.txns
 end
 

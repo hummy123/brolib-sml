@@ -5,8 +5,6 @@ struct
   val insert = GapBuffer.insert
   val delete = GapBuffer.delete
   val toString = GapBuffer.toString
-
-  val title = "Automerge"
   val txns = AutomergePaper.txns
 end
 

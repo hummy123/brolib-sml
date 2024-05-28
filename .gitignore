@@ -1,1 +1,9 @@
-/bench/out
+/bench/gap_buffer_svelte
+/bench/gap_buffer_rust
+/bench/gap_buffer_seph
+/bench/gap_buffer_automerge
+
+/bench/rope_svelte
+/bench/rope_rust
+/bench/rope_seph
+/bench/rope_automerge

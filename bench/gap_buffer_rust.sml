@@ -5,8 +5,6 @@ struct
   val insert = GapBuffer.insert
   val delete = GapBuffer.delete
   val toString = GapBuffer.toString
-
-  val title = "Rust"
   val txns = RustCode.txns
 end
 
