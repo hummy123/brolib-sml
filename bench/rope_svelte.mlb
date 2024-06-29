@@ -3,7 +3,7 @@ $(SML_LIB)/basis/basis.mlb
 ann
   "allowVectorExps true"
 in
-  svelte.sml
+  ../data-sets/svelte.sml
 end
 
 transaction.sml

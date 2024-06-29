@@ -3,7 +3,7 @@ $(SML_LIB)/basis/basis.mlb
 ann
   "allowVectorExps true"
 in
-  seph.sml
+  ../data-sets/seph.sml
 end
 
 transaction.sml

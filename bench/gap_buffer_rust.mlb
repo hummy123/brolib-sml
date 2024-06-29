@@ -3,7 +3,7 @@ $(SML_LIB)/basis/basis.mlb
 ann
   "allowVectorExps true"
 in
-  rust.sml
+  ../data-sets/rust.sml
 end
 
 transaction.sml
