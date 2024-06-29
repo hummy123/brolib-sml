@@ -34,27 +34,32 @@ struct
     String.size s1 + String.size s2 + String.size s3 <= stringLimit
     andalso Vector.length v1 + Vector.length v2 <= vecLimit
 
-  fun binSearch (findNum, lines, low, high) =
-    if Vector.length lines = 0 then
-      0
-    else
-      let
-        val mid = low + ((high - low) div 2)
-      in
-        if high >= low then
-          let
-            val midVal = Vector.sub (lines, mid)
-          in
-            if midVal = findNum then
-              mid
-            else if midVal < findNum then
-              binSearch (findNum, lines, mid + 1, high)
-            else
-              binSearch (findNum, lines, low, mid - 1)
-          end
-        else
-          mid
-      end
+  local
+    fun helpBinSearch (findNum, lines, low, high) =
+      if Vector.length lines = 0 then
+        0
+      else
+        let
+          val mid = low + ((high - low) div 2)
+        in
+          if high >= low then
+            let
+              val midVal = Vector.sub (lines, mid)
+            in
+              if midVal = findNum then
+                mid
+              else if midVal < findNum then
+                binSearch (findNum, lines, mid + 1, high)
+              else
+                binSearch (findNum, lines, low, mid - 1)
+            end
+          else
+            mid
+        end
+  in
+    fun binSearch (findNum, lines) =
+      helpBinSearch (findNum, lines, 0, Vector.length lines)
+  end
 
   fun insWhenIdxAndCurIdxAreEqual
     ( newString
@@ -176,9 +181,7 @@ struct
         val strSub1 = String.substring (leftStringsHd, 0, strLength)
         val strSub2 = String.substring
           (leftStringsHd, strLength, String.size leftStringsHd - strLength)
-        val midpoint =
-          binSearch
-            (String.size strSub1, leftLinesHd, 0, Vector.length leftLinesHd)
+        val midpoint = binSearch (String.size strSub1, leftLinesHd)
       in
         if
           isThreeInLimit (strSub1, newString, strSub2, leftLinesHd, newLines)
@@ -191,9 +194,9 @@ struct
                 , fn idx =>
                     if idx < midpoint then
                       Vector.sub (leftLinesHd, idx)
-                    else if idx < midpoint + String.size newString then
+                    else if idx < midpoint + Vector.length newLines then
                       Vector.sub (newLines, idx - midpoint)
-                      - String.size strSub1
+                      + String.size strSub1
                     else
                       Vector.sub (leftLinesHd, idx - Vector.length newLines)
                       + String.size newString
@@ -400,6 +403,132 @@ struct
         , rightLines = rightLines
         }
 
+  fun insInRightList
+    ( idx
+    , newString
+    , newLines
+    , curIdx
+    , curLine
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , nextIdx
+    , rightStringsHd
+    , rightStringsTl
+    , rightLinesHd
+    , rightLinesTl
+    ) =
+    if idx = nextIdx then
+      (* Need to put newString/newLines at the end of the right list's hd. *)
+      if isInLimit (newString, rightStringsHd, newLines, rightLinesHd) then
+        (* Allocate new string because we can do so while staying in limit. *)
+        let
+          val newRightStringsHd = rightLinesHd ^ newString
+          val newRightLinesHd =
+            Vector.tabulate
+              ( Vector.length newLines + Vector.line rightLinesHd
+              , fn idx =>
+                  if idx < Vector.length rightLinesHd then
+                    Vector.sub (rightLinesHd, idx)
+                  else
+                    Vector.sub (newLines, idx - Vector.length rightLinesHd)
+                    + String.size rightStringsHd
+              )
+        in
+          { idx = curIdx
+          , line = curLine
+          , leftStrings = leftStrings
+          , leftLines = leftLines
+          , rightStrings = newRightStringsHd :: rightStringsTl
+          , rightLines = newRightLinesHd :: rightLinesTl
+          }
+        end
+      else
+        (* Cons newString and newLines to after-the-head,
+         * because we can't join while staying in the limit.*)
+        { idx = curIdx
+        , line = curLine
+        , leftStrings = leftStrings
+        , leftLines = leftLines
+        , rightStrings = rightStringsHd :: newString :: rightStringsTl
+        , rightLines = rightLinesHd :: newLines :: rightLinesTl
+        }
+    else
+      (* Have to split rightStringsHd and rightLinesHd in the middle. *)
+      let
+        val strLength = idx - curIdx
+        val sub1 = String.substring (rightStringsHd, 0, strLength)
+        val sub2 = String.substring
+          (rightStringsHd, strLength, String.size rightStringsHd - strLength)
+        val midpoint = binSearch (String.size strSub1, rightStringsHd)
+      in
+        if
+          isThreeInLimit (strSub1, newString, strSub2, leftLinesHd, newLines)
+        then
+          (* Join three strings together. *)
+          let
+            val newRightStringsHd = String.concat [strSub1, newString, strSub2]
+            val newRightLinesHd =
+              Vector.tabulate
+                ( Vector.length rightLinesHd + Vector.length newLines
+                , fn idx =>
+                    if idx < midpoint then
+                      Vector.sub (rightLinesHd, idx)
+                    else if idx < midpoint + Vector.length newLines then
+                      Vector.sub (newLines, idx - midpoint)
+                      + String.size strSub1
+                    else
+                      Vector.sub (rightLinesHd, idx - Vector.length newLines)
+                      + String.size newString
+                )
+          in
+            { idx = curIdx
+            , line = curLine
+            , leftStrings = leftStrings
+            , leftLines = leftLines
+            , rightStrings = newRightStringsHd :: rightStringTl
+            , rightLines = newRightLinesHd :: rightLinesTl
+            }
+          end
+        else if
+          String.size strSub1 + String.size newString <= stringLimit
+          andalso midpoint + Vector.length newLines <= vecLimit
+        then
+          (* If we can join newString/lines with sub1 while
+           * staying in limit. *)
+          let
+            (* strSub1 ^ newString is placed on the left list. *)
+            val newLeftStringsHd = strSub1 ^ newString
+            val newLeftLinesHd =
+              Vector.tabulate (Vector.length newLines + midpoint, fn idx =>
+                if idx < midpoint then Vector.sub (rightStringsHd, idx)
+                else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
+
+            val newRightLinesHd =
+              VectorSlice.slice (rightLinesHd, midpoint, SOME
+                (Vector.length rightStringsHd - midpoint))
+            val newRightLinesHd = VectorSlice.vector newRightLinesHd
+          in
+            { idx = curIdx + String.sizew newLeftStringsHd
+            , line = curLine + Vector.length newLeftLinesHd
+            , leftStrings = newLeftStringsHd :: leftStrings
+            , leftLines = newLeftLinesHd :: leftLines
+            , rightStrings = strSub2 :: rightStringsTl
+            , rightLines = newRightLinesHd :: rightLinesTl
+            }
+          end
+        else if
+          String.size newString + String.size strSub2 <= stringLimit
+          andalso
+          (Vector.length leftLinesHd - midpoint) + Vector.length newLines
+          <= vecLimit
+        then
+          0
+        else
+          0
+      end
+
   fun moveRightAndIns
     ( idx
     , newString
@@ -466,7 +595,22 @@ struct
                      ))
           else
             (* Need to insert in the middle of the right string's hd. *)
-            0
+            insInRightList
+              ( idx
+              , newString
+              , newLines
+              , curIdx
+              , curLine
+              , leftStrings
+              , leftLines
+              , rightStrings
+              , rightLines
+              , nextIdx
+              , rightStringsHd
+              , rightStringsTl
+              , rightLinesHd
+              , rightLinesTl
+              )
         end
     | (_, _) =>
         (* Right string/line is empty. *)
