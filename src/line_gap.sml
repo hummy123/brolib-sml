@@ -80,9 +80,9 @@ struct
               if midVal = findNum then
                 mid
               else if midVal < findNum then
-                binSearch (findNum, lines, mid + 1, high)
+                helpBinSearch (findNum, lines, mid + 1, high)
               else
-                binSearch (findNum, lines, low, mid - 1)
+                helpBinSearch (findNum, lines, low, mid - 1)
             end
           else
             mid
@@ -327,7 +327,7 @@ struct
     , newLines
     , curIdx
     , curLine
-    , leftStrings
+    , leftStrings: string list
     , leftLines
     , rightStrings
     , rightLines
@@ -375,7 +375,7 @@ struct
                        , prevLine
                        , leftStringsTl
                        , leftLinesTl
-                       , newRightLinesHd :: rightStringsTl
+                       , newRightStringsHd :: rightStringsTl
                        , newRightLinesHd :: rightLinesTl
                        )
                    end
@@ -447,18 +447,18 @@ struct
     , nextIdx
     , rightStringsHd
     , rightStringsTl
-    , rightLinesHd
+    , rightLinesHd: int vector
     , rightLinesTl
-    ) =
+    ) : t =
     if idx = nextIdx then
       (* Need to put newString/newLines at the end of the right list's hd. *)
       if isInLimit (newString, rightStringsHd, newLines, rightLinesHd) then
         (* Allocate new string because we can do so while staying in limit. *)
         let
-          val newRightStringsHd = rightLinesHd ^ newString
+          val newRightStringsHd = rightStringsHd ^ newString
           val newRightLinesHd =
             Vector.tabulate
-              ( Vector.length newLines + Vector.line rightLinesHd
+              ( Vector.length newLines + Vector.length rightLinesHd
               , fn idx =>
                   if idx < Vector.length rightLinesHd then
                     Vector.sub (rightLinesHd, idx)
@@ -489,13 +489,13 @@ struct
       (* Have to split rightStringsHd and rightLinesHd in the middle. *)
       let
         val strLength = idx - curIdx
-        val sub1 = String.substring (rightStringsHd, 0, strLength)
-        val sub2 = String.substring
+        val strSub1 = String.substring (rightStringsHd, 0, strLength)
+        val strSub2 = String.substring
           (rightStringsHd, strLength, String.size rightStringsHd - strLength)
-        val midpoint = binSearch (String.size strSub1, rightStringsHd)
+        val midpoint = binSearch (String.size strSub1, rightLinesHd)
       in
         if
-          isThreeInLimit (strSub1, newString, strSub2, leftLinesHd, newLines)
+          isThreeInLimit (strSub1, newString, strSub2, rightLinesHd, newLines)
         then
           (* Join three strings together. *)
           let
@@ -533,7 +533,7 @@ struct
             val newLeftStringsHd = strSub1 ^ newString
             val newLeftLinesHd =
               Vector.tabulate (Vector.length newLines + midpoint, fn idx =>
-                if idx < midpoint then Vector.sub (rightStringsHd, idx)
+                if idx < midpoint then Vector.sub (rightLinesHd, idx)
                 else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
 
             val newRightLinesHd =
@@ -552,33 +552,32 @@ struct
         else if
           String.size newString + String.size strSub2 <= stringLimit
           andalso
-          (Vector.length leftLinesHd - midpoint) + Vector.length newLines
+          (Vector.length rightLinesHd - midpoint) + Vector.length newLines
           <= vecLimit
         then
           (* If we can join newString/line with sub2 while staying
            * in limit. *)
           let
             val newRightStringsHd = newString ^ strSub2
-            val newRightLinesHd = Vector.tabulate
-              (Vector.length newLines
-               +
-               ( Vector.length rightLinesHd - midpoint
-               , fn idx =>
-                   if idx < Vector.length newLines then
-                     Vector.sub (newLines, idx)
-                   else
-                     Vector.sub (rightLinesHd, idx - Vector.length newLines)
-                     + String.size newString
-               ))
+            val newRightLinesHd =
+              Vector.tabulate
+                ( Vector.length newLines + Vector.length rightLinesHd - midpoint
+                , fn idx =>
+                    if idx < Vector.length newLines then
+                      Vector.sub (newLines, idx)
+                    else
+                      Vector.sub (rightLinesHd, idx - Vector.length newLines)
+                      + String.size newString
+                )
             val newLeftLinesHd =
               VectorSlice.slice (rightLinesHd, 0, SOME midpoint)
             val newLeftLinesHd = VectorSlice.vector newLeftLinesHd
           in
             { idx = curIdx + String.size strSub1
-            , line = curLine = Vector.length newLeftLinesHd
+            , line = curLine + Vector.length newLeftLinesHd
             , leftStrings = strSub1 :: leftStrings
             , leftLines = newLeftLinesHd :: leftLines
-            , rightStrings = newRightLinesHd :: rightStringsTl
+            , rightStrings = newRightStringsHd :: rightStringsTl
             , rightLines = newRightLinesHd :: rightLinesTl
             }
           end
@@ -661,10 +660,22 @@ struct
                      , nextIdx
                      , curLine + Vector.length rightLinesHd
                      , rightStringsHd :: leftStrings
-                     , rightLinesHd :: leftStrings
+                     , rightLinesHd :: leftLines
                      , rightStringsTl
                      , rightLinesTl
-                     ))
+                     )
+             | (_, _) =>
+                 moveRightAndIns
+                   ( idx
+                   , newString
+                   , newLines
+                   , nextIdx
+                   , curLine + Vector.length rightLinesHd
+                   , rightStringsHd :: leftStrings
+                   , rightLinesHd :: leftLines
+                   , rightStringsTl
+                   , rightLinesTl
+                   ))
           else
             (* Need to insert in the middle of the right string's hd. *)
             insInRightList
