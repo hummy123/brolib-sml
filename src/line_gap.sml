@@ -2,6 +2,9 @@ structure LineGap =
 struct
   local
     fun helpCountLineBreaks (pos, acc, str) =
+    let
+      val _ = print ("count pos: " ^ Int.toString pos ^ "\n")
+    in
       if pos < 0 then
         Vector.fromList acc
       else
@@ -26,6 +29,7 @@ struct
           else
             helpCountLineBreaks (pos - 1, acc, str)
         end
+    end
   in
     fun countLineBreaks str =
       helpCountLineBreaks (String.size str - 1, [], str)
@@ -85,7 +89,7 @@ struct
                 helpBinSearch (findNum, lines, low, mid - 1)
             end
           else
-            mid
+            Int.max (0, mid)
         end
   in
     fun binSearch (findNum, lines) =
@@ -224,6 +228,8 @@ struct
         val strSub2 = String.substring
           (leftStringsHd, strLength, String.size leftStringsHd - strLength)
         val midpoint = binSearch (String.size strSub1, leftLinesHd)
+        val _ = print ("str size:" ^ Int.toString (Vector.length leftLinesHd) ^ "\n")
+        val _ = print ("midpoint:" ^ Int.toString (midpoint) ^ "\n")
       in
         if
           isThreeInLimit (strSub1, newString, strSub2, leftLinesHd, newLines)
@@ -261,11 +267,15 @@ struct
           (* If we can join newString/lines with sub1 while
            * staying in limit. *)
           let
-        val _ = print "line 264\n"
+        val _ = print "line 268\n"
+            val _ = print ("vector length: " ^ Int.toString (Vector.length newLines ) ^ "\n")
+            val _ = print ("midpoint: " ^ Int.toString (
+            midpoint) ^ "\n")
             val newLeftLines =
               Vector.tabulate (midpoint + Vector.length newLines, fn idx =>
                 if idx < midpoint then Vector.sub (leftLinesHd, idx)
                 else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
+        val _ = print "line 275\n"
             val newRightLines = VectorSlice.slice (leftLinesHd, midpoint, SOME
               (Vector.length leftLinesHd - midpoint))
             val newRightLines = VectorSlice.vector newRightLines
@@ -553,12 +563,16 @@ struct
             val newLeftStringsHd = strSub1 ^ newString
             val newLeftLinesHd =
               Vector.tabulate (Vector.length newLines + midpoint, fn idx =>
-                if idx < midpoint then Vector.sub (rightLinesHd, idx)
-                else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
+                if idx < midpoint then 
+                  Vector.sub (rightLinesHd, idx)
+                else 
+                  Vector.sub (newLines, accessIdx) + String.size strSub1
+                  )
 
+            val _ = print "line 584\n"
             val newRightLinesHd =
               VectorSlice.slice (rightLinesHd, midpoint, SOME
-                (Vector.length rightStringsHd - midpoint))
+                (Vector.length rightLinesHd - midpoint))
             val newRightLinesHd = VectorSlice.vector newRightLinesHd
           in
             { idx = curIdx + String.size newLeftStringsHd
@@ -779,7 +793,7 @@ struct
 
   fun insert (idx, newString, buffer: t) =
     let
-      val newLines = Vector.fromList []
+      val newLines = countLineBreaks newString
     in
       ins
         ( idx
