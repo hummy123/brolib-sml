@@ -2,34 +2,30 @@ structure LineGap =
 struct
   local
     fun helpCountLineBreaks (pos, acc, str) =
-      let
-        val _ = print ("count pos: " ^ Int.toString pos ^ "\n")
-      in
-        if pos < 0 then
-          Vector.fromList acc
-        else
-          let
-            val chr = String.sub (str, pos)
-          in
-            if chr = #"\n" then
-              (* Is this a \r\n pair? Then the position of \r should be consed. *)
-              if pos = 0 then
-                Vector.fromList (0 :: acc)
-              else
-                let
-                  val prevChar = String.sub (str, pos - 1)
-                in
-                  if prevChar = #"\r" then
-                    helpCountLineBreaks (pos - 2, (pos - 1) :: acc, str)
-                  else
-                    helpCountLineBreaks (pos - 2, pos :: acc, str)
-                end
-            else if chr = #"\r" then
-              helpCountLineBreaks (pos - 1, pos :: acc, str)
+      if pos < 0 then
+        Vector.fromList acc
+      else
+        let
+          val chr = String.sub (str, pos)
+        in
+          if chr = #"\n" then
+            (* Is this a \r\n pair? Then the position of \r should be consed. *)
+            if pos = 0 then
+              Vector.fromList (0 :: acc)
             else
-              helpCountLineBreaks (pos - 1, acc, str)
-          end
-      end
+              let
+                val prevChar = String.sub (str, pos - 1)
+              in
+                if prevChar = #"\r" then
+                  helpCountLineBreaks (pos - 2, (pos - 1) :: acc, str)
+                else
+                  helpCountLineBreaks (pos - 2, pos :: acc, str)
+              end
+          else if chr = #"\r" then
+            helpCountLineBreaks (pos - 1, pos :: acc, str)
+          else
+            helpCountLineBreaks (pos - 1, acc, str)
+        end
   in
     fun countLineBreaks str =
       helpCountLineBreaks (String.size str - 1, [], str)
@@ -44,6 +40,42 @@ struct
     , leftLines: int vector list
     , rightLines: int vector list
     }
+
+  local
+    fun goToStart (leftStrings, leftLines, accStrings, accLines) =
+      case (leftStrings, leftLines) of
+        (lsHd :: lsTl, llHd :: llTl) =>
+          goToStart (lsTl, llTl, lsHd :: accStrings, llHd :: accLines)
+      | (_, _) => (accStrings, accLines)
+
+    fun verifyLineList (strings, lines) =
+      case (strings, lines) of
+        (strHd :: strTl, lHd :: lTl) =>
+          let
+            val checkLines = countLineBreaks strHd
+          in
+            if checkLines = lHd then
+              verifyLineList (strTl, lTl)
+            else
+              let val _ = print "line metadata is incorrect\n"
+              in raise Empty
+              end
+          end
+      | (_, _) => print "verified lines; no problems\n"
+  in
+    fun verifyLines (buffer: t) =
+      let
+        val (strings, lines) =
+          goToStart
+            ( #leftStrings buffer
+            , #leftLines buffer
+            , #rightStrings buffer
+            , #rightLines buffer
+            )
+      in
+        verifyLineList (strings, lines)
+      end
+  end
 
   val stringLimit = 1024
   val vecLimit = 32
@@ -97,7 +129,7 @@ struct
   in
     fun binSearch (findNum, lines) =
       if Vector.length lines = 0 then 0
-      else helpBinSearch (findNum, lines, 0, Vector.length lines)
+      else helpBinSearch (findNum, lines, 0, Vector.length lines - 1)
   end
 
   fun insWhenIdxAndCurIdxAreEqual
@@ -575,7 +607,7 @@ struct
             val newLeftLinesHd =
               Vector.tabulate (Vector.length newLines + midpoint, fn idx =>
                 if idx < midpoint then Vector.sub (rightLinesHd, idx)
-                else Vector.sub (newLines, accessIdx) + String.size strSub1)
+                else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
 
             val _ = print "line 584\n"
             val newRightLinesHd =
