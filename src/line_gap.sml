@@ -19,7 +19,7 @@ struct
                 if prevChar = #"\r" then
                   helpCountLineBreaks (pos - 2, (pos - 1) :: acc, str)
                 else
-                  helpCountLineBreaks (pos - 2, pos :: acc, str)
+                  helpCountLineBreaks (pos - 1, pos :: acc, str)
               end
           else if chr = #"\r" then
             helpCountLineBreaks (pos - 1, pos :: acc, str)
@@ -41,6 +41,56 @@ struct
     , rightLines: int vector list
     }
 
+  fun lineBreaksToString vec =
+    (Vector.foldr (fn (el, acc) => Int.toString el ^ ", " ^ acc) "" vec) ^ "\n"
+
+  fun checkLineBreaks (v1, v2) =
+    if v1 = v2 then
+      ()
+    else
+      let
+        val _ = print ("broken: " ^ (lineBreaksToString v1))
+        val _ = print ("fixed: " ^ (lineBreaksToString v2))
+      in
+        ()
+      end
+
+  fun checkLineBreaksWithString (dir, str, lines) =
+    if countLineBreaks str <> lines then
+      let
+        val _ = print (dir ^ "\n")
+        val _ = print ("broken: " ^ lineBreaksToString lines)
+        val _ = print ("fixed: " ^ (lineBreaksToString (countLineBreaks str)))
+        val _ = raise Size
+      in
+        ()
+      end
+    else
+      ()
+
+  fun verifyReturn (buffer: t) =
+    let
+      val _ =
+        case (#leftStrings buffer, #leftLines buffer) of
+          (sHd :: _, lHd :: _) =>
+            let val _ = checkLineBreaksWithString ("left", sHd, lHd)
+            in ()
+            end
+        | (_, _) => ()
+
+      val _ =
+        case (#rightStrings buffer, #rightLines buffer) of
+          (sHd :: _, lHd :: _) =>
+            let val _ = checkLineBreaksWithString ("right", sHd, lHd)
+            in ()
+            end
+        | (_, _) => ()
+
+    in
+      buffer
+    end
+
+
   local
     fun goToStart (leftStrings, leftLines, accStrings, accLines) =
       case (leftStrings, leftLines) of
@@ -57,8 +107,11 @@ struct
             if checkLines = lHd then
               verifyLineList (strTl, lTl)
             else
-              let val _ = print "line metadata is incorrect\n"
-              in raise Empty
+              let
+                val _ = print "line metadata is incorrect\n"
+                val _ = checkLineBreaks (lHd, checkLines)
+              in
+                raise Empty
               end
           end
       | (_, _) => print "verified lines; no problems\n"
@@ -108,7 +161,18 @@ struct
     andalso Vector.length v1 + Vector.length v2 <= vecLimit
 
   local
-    fun helpBinSearch (findNum, lines, low, high) =
+    fun reverseLinearSearch (findNum, idx, lines) =
+      if idx < 0 then
+        idx
+      else
+        let
+          val curVal = Vector.sub (lines, idx)
+        in
+          if curVal < findNum then idx
+          else reverseLinearSearch (findNum, idx, lines)
+        end
+
+    fun helpBinSearch (findNum, lines, low, high, prevLow, prevHigh) =
       let
         val mid = low + ((high - low) div 2)
       in
@@ -117,19 +181,36 @@ struct
             val midVal = Vector.sub (lines, mid)
           in
             if midVal = findNum then
-              mid
+              (print "return 173\n"; mid)
             else if midVal < findNum then
-              helpBinSearch (findNum, lines, mid + 1, high)
+              helpBinSearch (findNum, lines, mid + 1, high, low, high)
             else
-              helpBinSearch (findNum, lines, low, mid - 1)
+              helpBinSearch (findNum, lines, low, mid - 1, low, high)
           end
         else
-          Int.max (0, mid)
+          let
+            val prevLowVal = Vector.sub (lines, prevLow)
+            val prevHighVal = Vector.sub (lines, prevHigh)
+            val _ = print ("prevLowVal: " ^ Int.toString prevLowVal ^ "\n")
+            val _ = print ("prevHighVal: " ^ Int.toString prevHighVal ^ "\n")
+            val _ = print ("findNum: " ^ Int.toString findNum ^ "\n")
+          in
+            (print "return 180\n"; reverseLinearSearch (findNum, mid, lines))
+          end
       end
   in
     fun binSearch (findNum, lines) =
-      if Vector.length lines = 0 then 0
-      else helpBinSearch (findNum, lines, 0, Vector.length lines - 1)
+      if Vector.length lines = 0 then
+        0
+      else
+        helpBinSearch
+          ( findNum
+          , lines
+          , 0
+          , Vector.length lines - 1
+          , 0
+          , Vector.length lines - 1
+          )
   end
 
   fun insWhenIdxAndCurIdxAreEqual
@@ -141,12 +222,13 @@ struct
     , leftLines
     , rightStrings
     , rightLines
-    ) =
+    ) : t =
     case (leftStrings, leftLines) of
       (strHd :: strTl, lineHd :: lineTl) =>
         if isInLimit (strHd, newString, lineHd, newLines) then
           (* Fits in limit, so we can add to existing string/line vector.*)
           let
+            (* VERIFIED TO WORK *)
             val _ = print "line 110\n"
             val newIdx = curIdx + String.size newString
             val newStrHd = strHd ^ newString
@@ -164,26 +246,29 @@ struct
                 )
             val newLeftLines = newLinesHd :: lineTl
           in
-            { idx = newIdx
-            , line = newLine
-            , leftStrings = newLeftString
-            , leftLines = newLeftLines
-            , rightStrings = rightStrings
-            , rightLines = rightLines
-            }
+            verifyReturn
+              { idx = newIdx
+              , line = newLine
+              , leftStrings = newLeftString
+              , leftLines = newLeftLines
+              , rightStrings = rightStrings
+              , rightLines = rightLines
+              }
           end
         else
           let
             val _ = print "line 137\n"
+          (* VERIFIED TO WORK *)
           in
             (* Does not fit in limit, so cons instead.*)
-            { idx = curIdx + String.size newString
-            , line = curLine + Vector.length newLines
-            , leftStrings = newString :: leftStrings
-            , leftLines = newLines :: leftLines
-            , rightStrings = rightStrings
-            , rightLines = rightLines
-            }
+            verifyReturn
+              { idx = curIdx + String.size newString
+              , line = curLine + Vector.length newLines
+              , leftStrings = newString :: leftStrings
+              , leftLines = newLines :: leftLines
+              , rightStrings = rightStrings
+              , rightLines = rightLines
+              }
           end
     | (_, _) =>
         (* 
@@ -194,14 +279,16 @@ struct
          *)
         let
           val _ = print "line 156\n"
+        (* VERIFIED TO WORK *)
         in
-          { idx = String.size newString
-          , line = Vector.length newLines
-          , leftStrings = [newString]
-          , leftLines = [newLines]
-          , rightStrings = rightStrings
-          , rightLines = rightLines
-          }
+          verifyReturn
+            { idx = String.size newString
+            , line = Vector.length newLines
+            , leftStrings = [newString]
+            , leftLines = [newLines]
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
         end
 
   fun insInLeftList
@@ -222,9 +309,15 @@ struct
     ) : t =
     if idx = prevIdx then
       (* Need to insert at the start of the left list. *)
-      if isInLimit (newString, leftStringsHd, newLines, leftLinesHd) then
+      if
+        (*
+        isInLimit (newString, leftStringsHd, newLines, leftLinesHd) 
+        *)
+        false
+      then
         let
           (* Create new vector, adjusting indices as needed. *)
+          (* VERIFIED TO WORK *)
           val _ = print "line 188\n"
           val joinedLines =
             Vector.tabulate
@@ -237,26 +330,29 @@ struct
                     + String.size newString
               )
         in
-          { idx = curIdx + String.size newString
-          , line = curLine + Vector.length newLines
-          , leftStrings = (newString ^ leftStringsHd) :: leftStringsTl
-          , leftLines = joinedLines :: leftLinesTl
-          , rightStrings = rightStrings
-          , rightLines = rightLines
-          }
+          verifyReturn
+            { idx = curIdx + String.size newString
+            , line = curLine + Vector.length newLines
+            , leftStrings = (newString ^ leftStringsHd) :: leftStringsTl
+            , leftLines = joinedLines :: leftLinesTl
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
         end
       else
         (* Just cons everything; no way we can join while staying in limit. *)
         let
+          (* VERIFIED TO WORK *)
           val _ = print "line 210\n"
         in
-          { idx = curIdx + String.size newString
-          , line = curLine + Vector.length newLines
-          , leftStrings = leftStringsHd :: newString :: leftStringsTl
-          , leftLines = leftLinesHd :: newLines :: leftLinesTl
-          , rightStrings = rightStrings
-          , rightLines = rightLines
-          }
+          verifyReturn
+            { idx = curIdx + String.size newString
+            , line = curLine + Vector.length newLines
+            , leftStrings = leftStringsHd :: newString :: leftStringsTl
+            , leftLines = leftLinesHd :: newLines :: leftLinesTl
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
         end
     else
       (* Need to insert in the middle of the left list. *)
@@ -266,43 +362,52 @@ struct
         val strSub1 = String.substring (leftStringsHd, 0, strLength)
         val strSub2 = String.substring
           (leftStringsHd, strLength, String.size leftStringsHd - strLength)
-        val midpoint = binSearch (String.size strSub1, leftLinesHd)
+        val midpoint = binSearch (String.size strSub1 - 1, leftLinesHd)
+        val _ = print ("lines in vec: " ^ lineBreaksToString leftLinesHd ^ "\n")
         val _ = print
-          ("str size:" ^ Int.toString (Vector.length leftLinesHd) ^ "\n")
+          ("vec size:" ^ Int.toString (Vector.length leftLinesHd) ^ "\n")
         val _ = print ("midpoint:" ^ Int.toString (midpoint) ^ "\n")
       in
         if
-          isThreeInLimit (strSub1, newString, strSub2, leftLinesHd, newLines)
+          (* isThreeInLimit (strSub1, newString, strSub2, leftLinesHd, newLines)
+          * *) false
         then
           (* Join three strings together. *)
           let
+            (* VERIFIED TO WORK *)
             val _ = print "line 233\n"
+            val joinedString = String.concat [strSub1, newString, strSub2]
             val joinedLines =
-              Vector.tabulate
-                ( Vector.length leftLinesHd + Vector.length newLines
-                , fn idx =>
-                    if idx < midpoint then
-                      Vector.sub (leftLinesHd, idx)
-                    else if idx < midpoint + Vector.length newLines then
-                      Vector.sub (newLines, idx - midpoint)
-                      + String.size strSub1
-                    else
-                      Vector.sub (leftLinesHd, idx - Vector.length newLines)
-                      + String.size newString
-                )
+              if Vector.length leftLinesHd > 0 then
+                Vector.tabulate
+                  ( Vector.length leftLinesHd + Vector.length newLines
+                  , fn idx =>
+                      if idx <= midpoint then
+                        Vector.sub (leftLinesHd, idx)
+                      else if idx <= midpoint + Vector.length newLines then
+                        Vector.sub (newLines, (idx - midpoint) - 1)
+                        + String.size strSub1
+                      else
+                        Vector.sub (leftLinesHd, (idx - Vector.length newLines))
+                        + String.size newString
+                  )
+              else
+                Vector.map (fn el => el + String.size strSub1) newLines
           in
-            { idx = curIdx + String.size newString
-            , line = curLine + Vector.length newLines
-            , leftStrings =
-                String.concat [strSub1, newString, strSub2] :: leftStringsTl
-            , leftLines = joinedLines :: leftLinesTl
-            , rightStrings = rightStrings
-            , rightLines = rightLines
-            }
+            verifyReturn
+              { idx = curIdx + String.size newString
+              , line = curLine + Vector.length newLines
+              , leftStrings = joinedString :: leftStringsTl
+              , leftLines = joinedLines :: leftLinesTl
+              , rightStrings = rightStrings
+              , rightLines = rightLines
+              }
           end
         else if
-          String.size strSub1 + String.size newString <= stringLimit
-          andalso midpoint + Vector.length newLines <= vecLimit
+          true (*
+                String.size strSub1 + String.size newString <= stringLimit
+                andalso midpoint + Vector.length newLines <= vecLimit
+                *)
         then
           (* If we can join newString/lines with sub1 while
            * staying in limit. *)
@@ -311,85 +416,109 @@ struct
             val _ = print
               ("vector length: " ^ Int.toString (Vector.length newLines) ^ "\n")
             val _ = print ("midpoint: " ^ Int.toString (midpoint) ^ "\n")
+
+            val newLeftLines = countLineBreaks (strSub1 ^ newString)
+            (*
             val newLeftLines =
               Vector.tabulate (midpoint + Vector.length newLines, fn idx =>
                 if idx < midpoint then Vector.sub (leftLinesHd, idx)
                 else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
+                *)
             val _ = print "line 275\n"
-            val newRightLines = VectorSlice.slice (leftLinesHd, midpoint, SOME
-              (Vector.length leftLinesHd - midpoint))
-            val newRightLines = VectorSlice.vector newRightLines
+
+          (*
+          val newRightLines = VectorSlice.slice (leftLinesHd, midpoint, SOME
+            (Vector.length leftLinesHd - midpoint))
+          val newRightLines = VectorSlice.vector newRightLines
+          *)
           in
-            { idx = prevIdx + String.size strSub1 + String.size newString
-            , line =
-                (curLine - Vector.length leftLinesHd)
-                + Vector.length newLeftLines
-            , leftStrings = (strSub1 ^ newString) :: leftStringsTl
-            , leftLines = newLeftLines :: leftLinesTl
-            , rightStrings = strSub2 :: rightStrings
-            , rightLines = newRightLines :: rightLines
-            }
+            verifyReturn
+              { idx = prevIdx + String.size strSub1 + String.size newString
+              , line =
+                  (curLine - Vector.length leftLinesHd)
+                  + Vector.length newLeftLines
+              , leftStrings = (strSub1 ^ newString) :: leftStringsTl
+              , leftLines = countLineBreaks (strSub1 ^ newString) :: leftLinesTl
+              , rightStrings = strSub2 :: rightStrings
+              , rightLines = countLineBreaks strSub2 :: rightLines
+              }
           end
         else if
-          String.size newString + String.size strSub2 <= stringLimit
-          andalso
-          (Vector.length leftLinesHd - midpoint) + Vector.length newLines
-          <= vecLimit
+          (*
+            String.size newString + String.size strSub2 <= stringLimit
+            andalso
+            (Vector.length leftLinesHd - midpoint) + Vector.length newLines
+            <= vecLimit
+            *)
+          false
         then
           (* If we can join newString/line with sub2 while staying
            * in limit. *)
           let
             val _ = print "line 292\n"
-            val newLeftLines = VectorSlice.slice (leftLinesHd, 0, SOME midpoint)
-            val newLeftLines = VectorSlice.vector newLeftLines
-
-            val newRightLines =
-              Vector.tabulate
-                ( (Vector.length leftLinesHd - midpoint)
-                  + Vector.length newLines
-                , fn idx =>
-                    if idx < Vector.length newLines then
-                      Vector.sub (newLines, idx)
-                    else
-                      (Vector.sub (leftLinesHd, idx - Vector.length newLines)
-                       - String.size strSub1) + String.size newString
-                )
+          (*
+                      val newLeftLines = VectorSlice.slice (leftLinesHd, 0, SOME midpoint)
+                      val newLeftLines = VectorSlice.vector newLeftLines
+          
+                      val newRightLines =
+                        Vector.tabulate
+                          ( (Vector.length leftLinesHd - midpoint)
+                            + Vector.length newLines
+                          , fn idx =>
+                              if idx < Vector.length newLines then
+                                Vector.sub (newLines, idx)
+                              else
+                                (Vector.sub (leftLinesHd, idx - Vector.length newLines)
+                                 - String.size strSub1) + String.size newString
+                          ) *)
           in
-            { idx = prevIdx + String.size strSub1
-            , line = (curLine - Vector.length leftLinesHd) + midpoint
-            , leftStrings = strSub1 :: leftStringsTl
-            , leftLines = newLeftLines :: leftLinesTl
-            , rightStrings = (newString ^ strSub2) :: rightStrings
-            , rightLines = newRightLines :: rightLines
-            }
+            verifyReturn
+              { idx = prevIdx + String.size strSub1
+              , line = (curLine - Vector.length leftLinesHd) + midpoint
+              , leftStrings = strSub1 :: leftStringsTl
+              , leftLines = countLineBreaks strSub1 :: leftLinesTl
+              , rightStrings = (newString ^ strSub2) :: rightStrings
+              , rightLines = countLineBreaks (newString ^ strSub2) :: rightLines
+              }
           end
         else
           (* Can't join on either side while staying in limit. *)
           let
-            val _ = print "line 319\n"
-            val lineSub1 = VectorSlice.slice (leftLinesHd, 0, SOME midpoint)
-            val lineSub1 = VectorSlice.vector lineSub1
+            (* VERIFIED TO WORK *)
+            val lineSub1 =
+              if midpoint >= 0 andalso Vector.length leftLinesHd > 0 then
+                let
+                  val lineSub1 = VectorSlice.slice
+                    (leftLinesHd, 0, SOME (midpoint + 1))
+                in
+                  VectorSlice.vector lineSub1
+                end
+              else
+                Vector.fromList []
 
-            val lineSub2 = VectorSlice.slice (leftLinesHd, midpoint, SOME
-              (Vector.length leftLinesHd - midpoint))
-            val lineSub2 = VectorSlice.vector lineSub2
+            val lineSub2Length =
+              Vector.length leftLinesHd - Vector.length lineSub1
+            val lineSub2 = Vector.tabulate (lineSub2Length, fn idx =>
+              Vector.sub (leftLinesHd, idx + Vector.length lineSub1)
+              - String.size strSub1)
           in
-            { idx = prevIdx + String.size strSub1 + String.size newString
-            , line =
-                (curLine - String.size leftStringsHd) + midpoint
-                + Vector.length newLines
-            , leftStrings = newString :: strSub1 :: leftStringsTl
-            , leftLines = newLines :: lineSub1 :: leftLinesTl
-            , rightStrings = strSub2 :: rightStrings
-            , rightLines = lineSub1 :: rightLines
-            }
+            verifyReturn
+              { idx = prevIdx + String.size strSub1 + String.size newString
+              , line =
+                  (curLine - String.size leftStringsHd) + midpoint
+                  + Vector.length newLines
+              , leftStrings = newString :: strSub1 :: leftStringsTl
+              , leftLines = newLines :: lineSub1 :: leftLinesTl
+              , rightStrings = strSub2 :: rightStrings
+              , rightLines = lineSub2 :: rightLines
+              }
           end
       end
 
   fun moveLeftAndIns
     ( idx
     , newString
-    , newLines
+    , newLines: int vector
     , curIdx
     , curLine
     , leftStrings: string list
@@ -412,14 +541,17 @@ struct
              * *)
             (case (rightStrings, rightLines) of
                (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
-                 if
-                   isInLimit
-                     (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
-                 then
+                 if false
+                   (*
+                     isInLimit
+                       (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
+                       *) then
                    let
                      val _ = print "line 370\n"
                      val prevLine = curLine - Vector.length leftLinesHd
                      val newRightStringsHd = leftStringsHd ^ rightStringsHd
+
+                     (*
                      val newRightLinesHd =
                        Vector.tabulate
                          ( Vector.length leftLinesHd
@@ -432,6 +564,8 @@ struct
                                  (rightLinesHd, idx - Vector.length leftLinesHd)
                                + String.size leftStringsHd
                          )
+                         *)
+                     val newRightLinesHd = countLineBreaks newRightStringsHd
                    in
                      moveLeftAndIns
                        ( idx
@@ -492,13 +626,14 @@ struct
     | (_, _) =>
         (* Left list is empty, so need to cons or join.
          * Just set left string/list as newString/newLines. *)
-        { idx = String.size newString
-        , line = Vector.length newLines
-        , leftStrings = [newString]
-        , leftLines = [newLines]
-        , rightStrings = rightStrings
-        , rightLines = rightLines
-        }
+        verifyReturn
+          { idx = String.size newString
+          , line = Vector.length newLines
+          , leftStrings = [newString]
+          , leftLines = [newLines]
+          , rightStrings = rightStrings
+          , rightLines = rightLines
+          }
 
   fun insInRightList
     ( idx
@@ -523,24 +658,28 @@ struct
         let
           val _ = print "line 474\n"
           val newRightStringsHd = rightStringsHd ^ newString
-          val newRightLinesHd =
-            Vector.tabulate
-              ( Vector.length newLines + Vector.length rightLinesHd
-              , fn idx =>
-                  if idx < Vector.length rightLinesHd then
-                    Vector.sub (rightLinesHd, idx)
-                  else
-                    Vector.sub (newLines, idx - Vector.length rightLinesHd)
-                    + String.size rightStringsHd
-              )
+          val newRightLinesHd = countLineBreaks newRightStringsHd
+        (*
+        val newRightLinesHd =
+          Vector.tabulate
+            ( Vector.length newLines + Vector.length rightLinesHd
+            , fn idx =>
+                if idx < Vector.length rightLinesHd then
+                  Vector.sub (rightLinesHd, idx)
+                else
+                  Vector.sub (newLines, idx - Vector.length rightLinesHd)
+                  + String.size rightStringsHd
+            )
+            *)
         in
-          { idx = curIdx
-          , line = curLine
-          , leftStrings = leftStrings
-          , leftLines = leftLines
-          , rightStrings = newRightStringsHd :: rightStringsTl
-          , rightLines = newRightLinesHd :: rightLinesTl
-          }
+          verifyReturn
+            { idx = curIdx
+            , line = curLine
+            , leftStrings = leftStrings
+            , leftLines = leftLines
+            , rightStrings = newRightStringsHd :: rightStringsTl
+            , rightLines = countLineBreaks newRightStringsHd :: rightLinesTl
+            }
         end
       else
         (* Cons newString and newLines to after-the-head,
@@ -548,13 +687,14 @@ struct
         let
           val _ = print "line 498\n"
         in
-          { idx = curIdx
-          , line = curLine
-          , leftStrings = leftStrings
-          , leftLines = leftLines
-          , rightStrings = rightStringsHd :: newString :: rightStringsTl
-          , rightLines = rightLinesHd :: newLines :: rightLinesTl
-          }
+          verifyReturn
+            { idx = curIdx
+            , line = curLine
+            , leftStrings = leftStrings
+            , leftLines = leftLines
+            , rightStrings = rightStringsHd :: newString :: rightStringsTl
+            , rightLines = rightLinesHd :: newLines :: rightLinesTl
+            }
         end
     else
       (* Have to split rightStringsHd and rightLinesHd in the middle. *)
@@ -563,40 +703,61 @@ struct
         val strSub1 = String.substring (rightStringsHd, 0, strLength)
         val strSub2 = String.substring
           (rightStringsHd, strLength, String.size rightStringsHd - strLength)
-        val midpoint = binSearch (String.size strSub1, rightLinesHd)
+        val midpoint = binSearch (String.size strSub1 - 1, rightLinesHd)
       in
         if
           isThreeInLimit (strSub1, newString, strSub2, rightLinesHd, newLines)
         then
           (* Join three strings together. *)
           let
-            val _ = print "line 520\n"
+            val _ = print "line 573\n"
             val newRightStringsHd = String.concat [strSub1, newString, strSub2]
-            val newRightLinesHd =
-              Vector.tabulate
-                ( Vector.length rightLinesHd + Vector.length newLines
-                , fn idx =>
-                    if idx < midpoint then
-                      Vector.sub (rightLinesHd, idx)
-                    else if idx < midpoint + Vector.length newLines then
-                      Vector.sub (newLines, idx - midpoint)
-                      + String.size strSub1
-                    else
-                      Vector.sub (rightLinesHd, idx - Vector.length newLines)
-                      + String.size newString
-                )
+
+          (*
+          val newRightLinesHd =
+            Vector.tabulate
+              ( Vector.length rightLinesHd + Vector.length newLines
+              , fn idx =>
+                  if idx < midpoint then
+                    Vector.sub (rightLinesHd, idx)
+                  else if idx < midpoint + Vector.length newLines then
+                    let
+                      val result =
+                        Vector.sub (newLines, idx - midpoint) + String.size
+                        strSub1
+                      val _ = print "line 598\n"
+                      val _ = print ("result: " ^ Int.toString result ^ "\n")
+                    in
+                      result
+                    end
+                  else
+                    let
+                      val result =
+                        Vector.sub
+                          (rightLinesHd, idx - Vector.length newLines)
+                        + String.size newString
+                      val _ = print "line 606\n"
+                      val _ = print ("result: " ^ Int.toString result ^ "\n")
+                    in
+                      result
+                    end
+              ) *)
           in
-            { idx = curIdx
-            , line = curLine
-            , leftStrings = leftStrings
-            , leftLines = leftLines
-            , rightStrings = newRightStringsHd :: rightStringsTl
-            , rightLines = newRightLinesHd :: rightLinesTl
-            }
+            verifyReturn
+              { idx = curIdx
+              , line = curLine
+              , leftStrings = leftStrings
+              , leftLines = leftLines
+              , rightStrings = newRightStringsHd :: rightStringsTl
+              , rightLines = countLineBreaks newRightStringsHd :: rightLinesTl
+              }
           end
         else if
-          String.size strSub1 + String.size newString <= stringLimit
-          andalso midpoint + Vector.length newLines <= vecLimit
+          (*
+            String.size strSub1 + String.size newString <= stringLimit
+            andalso midpoint + Vector.length newLines <= vecLimit
+            *)
+          false
         then
           (* If we can join newString/lines with sub1 while
            * staying in limit. *)
@@ -604,75 +765,102 @@ struct
             (* strSub1 ^ newString is placed on the left list. *)
             val _ = print "line 552\n"
             val newLeftStringsHd = strSub1 ^ newString
+            (*
             val newLeftLinesHd =
-              Vector.tabulate (Vector.length newLines + midpoint, fn idx =>
-                if idx < midpoint then Vector.sub (rightLinesHd, idx)
-                else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
-
+            Vector.tabulate (Vector.length newLines + midpoint, fn idx =>
+              if idx < midpoint then Vector.sub (rightLinesHd, idx)
+              else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
+              *)
             val _ = print "line 584\n"
-            val newRightLinesHd =
-              VectorSlice.slice (rightLinesHd, midpoint, SOME
-                (Vector.length rightLinesHd - midpoint))
-            val newRightLinesHd = VectorSlice.vector newRightLinesHd
+
+          (*
+          val newRightLinesHd =
+            VectorSlice.slice (rightLinesHd, midpoint, SOME
+              (Vector.length rightLinesHd - midpoint))
+          val newRightLinesHd = VectorSlice.vector newRightLinesHd *)
           in
-            { idx = curIdx + String.size newLeftStringsHd
-            , line = curLine + Vector.length newLeftLinesHd
-            , leftStrings = newLeftStringsHd :: leftStrings
-            , leftLines = newLeftLinesHd :: leftLines
-            , rightStrings = strSub2 :: rightStringsTl
-            , rightLines = newRightLinesHd :: rightLinesTl
-            }
+            verifyReturn
+              { idx = curIdx + String.size newLeftStringsHd
+              , line =
+                  curLine + Vector.length (countLineBreaks newLeftStringsHd)
+              , leftStrings = newLeftStringsHd :: leftStrings
+              , leftLines = countLineBreaks newLeftStringsHd :: leftLines
+              , rightStrings = strSub2 :: rightStringsTl
+              , rightLines = countLineBreaks strSub2 :: rightLinesTl
+              }
           end
         else if
-          String.size newString + String.size strSub2 <= stringLimit
-          andalso
-          (Vector.length rightLinesHd - midpoint) + Vector.length newLines
-          <= vecLimit
+          (*
+            String.size newString + String.size strSub2 <= stringLimit
+            andalso
+            (Vector.length rightLinesHd - midpoint) + Vector.length newLines
+            <= vecLimit
+            *)
+          false
         then
           (* If we can join newString/line with sub2 while staying
            * in limit. *)
           let
             val _ = print "line 581\n"
             val newRightStringsHd = newString ^ strSub2
-            val newRightLinesHd =
-              Vector.tabulate
-                ( Vector.length newLines + Vector.length rightLinesHd - midpoint
-                , fn idx =>
-                    if idx < Vector.length newLines then
-                      Vector.sub (newLines, idx)
-                    else
-                      Vector.sub (rightLinesHd, idx - Vector.length newLines)
-                      + String.size newString
-                )
-            val newLeftLinesHd =
-              VectorSlice.slice (rightLinesHd, 0, SOME midpoint)
-            val newLeftLinesHd = VectorSlice.vector newLeftLinesHd
+          (*
+          val newRightLinesHd =
+            Vector.tabulate
+              ( Vector.length newLines + Vector.length rightLinesHd - midpoint
+              , fn idx =>
+                  if idx < Vector.length newLines then
+                    Vector.sub (newLines, idx)
+                  else
+                    Vector.sub (rightLinesHd, idx - Vector.length newLines)
+                    + String.size newString
+              )
+          
+          val newLeftLinesHd =
+            VectorSlice.slice (rightLinesHd, 0, SOME midpoint)
+          val newLeftLinesHd = VectorSlice.vector newLeftLinesHd
+          *)
           in
-            { idx = curIdx + String.size strSub1
-            , line = curLine + Vector.length newLeftLinesHd
-            , leftStrings = strSub1 :: leftStrings
-            , leftLines = newLeftLinesHd :: leftLines
-            , rightStrings = newRightStringsHd :: rightStringsTl
-            , rightLines = newRightLinesHd :: rightLinesTl
-            }
+            verifyReturn
+              { idx = curIdx + String.size strSub1
+              , line = curLine + Vector.length (countLineBreaks strSub1)
+              , leftStrings = strSub1 :: leftStrings
+              , leftLines = countLineBreaks strSub1 :: leftLines
+              , rightStrings = newRightStringsHd :: rightStringsTl
+              , rightLines = countLineBreaks newRightStringsHd :: rightLinesTl
+              }
           end
         else
           (* Can't join on either side while staying in limit. *)
           let
+            (* VERIFIED TO WORK *)
             val _ = print "line 608\n"
-            val lineSub1 = VectorSlice.slice (rightLinesHd, 0, SOME midpoint)
-            val lineSub1 = VectorSlice.vector lineSub1
-            val lineSub2 = VectorSlice.slice (rightLinesHd, midpoint, SOME
-              (Vector.length rightLinesHd - midpoint))
-            val lineSub2 = VectorSlice.vector lineSub2
+            val lineSub1 =
+              if midpoint >= 0 andalso Vector.length rightLinesHd > 0 then
+                let
+                  val lineSub1 = VectorSlice.slice
+                    (rightLinesHd, 0, SOME (midpoint + 1))
+                in
+                  VectorSlice.vector lineSub1
+                end
+              else
+                Vector.fromList []
+
+            val lineSub2Length =
+              Vector.length rightLinesHd - Vector.length lineSub1
+            val lineSub2 = Vector.tabulate (lineSub2Length, fn idx =>
+              Vector.sub (rightLinesHd, idx + Vector.length lineSub1)
+              - String.size strSub1)
           in
-            { idx = curIdx + String.size strSub1 + String.size newString
-            , line = curLine + Vector.length lineSub1 + Vector.length newLines
-            , leftStrings = newString :: strSub1 :: leftStrings
-            , leftLines = newLines :: lineSub1 :: leftLines
-            , rightStrings = strSub2 :: rightStringsTl
-            , rightLines = lineSub2 :: rightLinesTl
-            }
+            verifyReturn
+              { idx = curIdx + String.size strSub1 + String.size newString
+              , line =
+                  curLine + Vector.length (countLineBreaks newString)
+                  + Vector.length lineSub1
+              , leftStrings = newString :: strSub1 :: leftStrings
+              , leftLines = newLines :: lineSub1 :: leftLines
+              , rightStrings = strSub2 :: rightStringsTl
+              , rightLines = lineSub2 :: rightLinesTl
+              }
           end
       end
 
@@ -697,13 +885,17 @@ struct
             (case (leftStrings, leftLines) of
                (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
                  if
-                   isInLimit
-                     (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
+                   (*
+                     isInLimit
+                       (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
+                       *)
+                   false
                  then
                    let
                      val _ = print "line 650\n"
                      val nextLine = curLine + Vector.length rightLinesHd
                      val newLeftStringsHd = leftStringsHd ^ rightStringsHd
+                     (*
                      val newLeftLinesHd =
                        Vector.tabulate
                          ( Vector.length leftLinesHd
@@ -715,7 +907,8 @@ struct
                                Vector.sub
                                  (rightLinesHd, idx - Vector.length leftLinesHd)
                                + String.size leftStringsHd
-                         )
+                        ) *)
+                     val newLeftLinesHd = countLineBreaks newLeftStringsHd
                    in
                      moveRightAndIns
                        ( idx
@@ -777,13 +970,14 @@ struct
         let
           val _ = print "line 723\n"
         in
-          { idx = curIdx
-          , line = curLine
-          , leftStrings = leftStrings
-          , leftLines = leftLines
-          , rightStrings = [newString]
-          , rightLines = [newLines]
-          }
+          verifyReturn
+            { idx = curIdx
+            , line = curLine
+            , leftStrings = leftStrings
+            , leftLines = leftLines
+            , rightStrings = [newString]
+            , rightLines = [newLines]
+            }
         end
 
   fun ins

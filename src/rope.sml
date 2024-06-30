@@ -67,7 +67,7 @@ struct
               if prevChar = #"\r" then
                 helpCountLineBreaks (pos - 2, (pos - 1) :: acc, str)
               else
-                helpCountLineBreaks (pos - 2, pos :: acc, str)
+                helpCountLineBreaks (pos - 1, pos :: acc, str)
             end
         else if chr = #"\r" then
           helpCountLineBreaks (pos - 1, pos :: acc, str)

@@ -54,6 +54,7 @@ fun compareTxns arr =
   fun main () =
   let
     val (rope, gap) = compareTxns SvelteComponent.txns
+    val _ = print "string contents are equal\n"
     val _ = LineGap.verifyLines gap
     (*
     val _ = compareTxns Rust.txns
