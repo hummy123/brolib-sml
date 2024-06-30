@@ -421,45 +421,35 @@ struct
 
             (* NEWLEFTLINES VERIFIED *)
             val newLeftLines =
-              if Vector.length leftLinesHd = 0 then
-                Vector.map (fn el => el + String.size strSub1) newLines
-              else
+              if midpoint >= 0 then
+                (* Implicit: a binSearch match was found. *)
                 let
                   val newLeftLinesLength = midpoint + 1 + Vector.length newLines
                 in
-                  if newLeftLinesLength >= 0 then
-                    Vector.tabulate (newLeftLinesLength, fn idx =>
-                      if idx <= midpoint then
-                        Vector.sub (leftLinesHd, idx)
-                      else
-                        Vector.sub (newLines, idx - (midpoint + 1))
-                        + String.size strSub1)
-                  else
-                    Vector.fromList []
+                  Vector.tabulate (newLeftLinesLength, fn idx =>
+                    if idx <= midpoint then
+                      Vector.sub (leftLinesHd, idx)
+                    else
+                      Vector.sub (newLines, idx - (midpoint + 1))
+                      + String.size strSub1)
                 end
+              else
+                Vector.map (fn el => el + String.size strSub1) newLines
 
             val _ = print "line 275\n"
 
             (* NEWRIGHTLINES VERIFIED *)
             val newRightLines =
-              if Vector.length leftLinesHd = 0 then
-                Vector.fromList []
-              else if midpoint >= 0 then
-                let
-                  val _ = print "line 447\n"
-                in
+              if midpoint >= 0 then
+                (* Implicit: a binSearch match was found. *)
                   Vector.tabulate
                     ( (Vector.length leftLinesHd - midpoint) - 1
                     , fn idx =>
                         Vector.sub (leftLinesHd, idx + midpoint + 1)
                         - String.size strSub1
                     )
-                end
               else
-                (* midpoint = ~1 andalso Vector.length leftLinesHd > 0 *)
-                let val _ = print "line 458\n"
-                in Vector.map (fn idx => idx - String.size strSub1) leftLinesHd
-                end
+                Vector.map (fn idx => idx - String.size strSub1) leftLinesHd
           in
             verifyReturn
               { idx = prevIdx + String.size strSub1 + String.size newString
