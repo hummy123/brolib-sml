@@ -413,6 +413,7 @@ struct
           (* If we can join newString/lines with sub1 while
            * staying in limit. *)
           let
+            (* VERIFIED TO WORK *)
             val _ = print "line 416\n\n\n"
             val _ = print
               ("vector length: " ^ Int.toString (Vector.length newLines) ^ "\n")
@@ -442,12 +443,12 @@ struct
             val newRightLines =
               if midpoint >= 0 then
                 (* Implicit: a binSearch match was found. *)
-                  Vector.tabulate
-                    ( (Vector.length leftLinesHd - midpoint) - 1
-                    , fn idx =>
-                        Vector.sub (leftLinesHd, idx + midpoint + 1)
-                        - String.size strSub1
-                    )
+                Vector.tabulate
+                  ( (Vector.length leftLinesHd - midpoint) - 1
+                  , fn idx =>
+                      Vector.sub (leftLinesHd, idx + midpoint + 1)
+                      - String.size strSub1
+                  )
               else
                 Vector.map (fn idx => idx - String.size strSub1) leftLinesHd
           in
@@ -474,30 +475,41 @@ struct
           (* If we can join newString/line with sub2 while staying
            * in limit. *)
           let
-            val _ = print "line 292\n"
-          (*
-                      val newLeftLines = VectorSlice.slice (leftLinesHd, 0, SOME midpoint)
-                      val newLeftLines = VectorSlice.vector newLeftLines
-          
-                      val newRightLines =
-                        Vector.tabulate
-                          ( (Vector.length leftLinesHd - midpoint)
-                            + Vector.length newLines
-                          , fn idx =>
-                              if idx < Vector.length newLines then
-                                Vector.sub (newLines, idx)
-                              else
-                                (Vector.sub (leftLinesHd, idx - Vector.length newLines)
-                                 - String.size strSub1) + String.size newString
-                          ) *)
+            (* VERIFIED TO WORK *)
+            val _ = print "line 478\n"
+            val newLeftLines =
+              if midpoint >= 0 andalso Vector.length leftLinesHd > 0 then
+                let
+                  val newLeftLines = VectorSlice.slice
+                    (leftLinesHd, 0, SOME (midpoint + 1))
+                in
+                  VectorSlice.vector newLeftLines
+                end
+              else
+                Vector.fromList []
+
+            val newRightLines =
+              Vector.tabulate
+                ( (Vector.length leftLinesHd - Vector.length newLeftLines)
+                  + Vector.length newLines
+                , fn idx =>
+                    if idx < Vector.length newLines then
+                      Vector.sub (newLines, idx)
+                    else
+                      Vector.sub
+                        ( leftLinesHd
+                        , (idx - Vector.length newLines)
+                          + Vector.length newLeftLines
+                        ) - String.size strSub1 + String.size newString
+                )
           in
             verifyReturn
               { idx = prevIdx + String.size strSub1
               , line = (curLine - Vector.length leftLinesHd) + midpoint
               , leftStrings = strSub1 :: leftStringsTl
-              , leftLines = countLineBreaks strSub1 :: leftLinesTl
+              , leftLines = newLeftLines :: leftLinesTl
               , rightStrings = (newString ^ strSub2) :: rightStrings
-              , rightLines = countLineBreaks (newString ^ strSub2) :: rightLines
+              , rightLines = newRightLines :: rightLines
               }
           end
         else
