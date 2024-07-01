@@ -578,11 +578,11 @@ struct
                        (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
                        *) then
                    let
+                     (* VERIFIED TO WORK *)
                      val _ = print "line 370\n"
                      val prevLine = curLine - Vector.length leftLinesHd
                      val newRightStringsHd = leftStringsHd ^ rightStringsHd
 
-                     (*
                      val newRightLinesHd =
                        Vector.tabulate
                          ( Vector.length leftLinesHd
@@ -595,8 +595,6 @@ struct
                                  (rightLinesHd, idx - Vector.length leftLinesHd)
                                + String.size leftStringsHd
                          )
-                         *)
-                     val newRightLinesHd = countLineBreaks newRightStringsHd
                    in
                      moveLeftAndIns
                        ( idx
