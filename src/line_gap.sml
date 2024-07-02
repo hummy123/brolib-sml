@@ -685,21 +685,10 @@ struct
       if isInLimit (newString, rightStringsHd, newLines, rightLinesHd) then
         (* Allocate new string because we can do so while staying in limit. *)
         let
+          (* VERIFIED TO WORK *)
           val _ = print "line 474\n"
           val newRightStringsHd = rightStringsHd ^ newString
           val newRightLinesHd = countLineBreaks newRightStringsHd
-        (*
-        val newRightLinesHd =
-          Vector.tabulate
-            ( Vector.length newLines + Vector.length rightLinesHd
-            , fn idx =>
-                if idx < Vector.length rightLinesHd then
-                  Vector.sub (rightLinesHd, idx)
-                else
-                  Vector.sub (newLines, idx - Vector.length rightLinesHd)
-                  + String.size rightStringsHd
-            )
-            *)
         in
           verifyReturn
             { idx = curIdx
@@ -707,7 +696,7 @@ struct
             , leftStrings = leftStrings
             , leftLines = leftLines
             , rightStrings = newRightStringsHd :: rightStringsTl
-            , rightLines = countLineBreaks newRightStringsHd :: rightLinesTl
+            , rightLines = newRightLinesHd :: rightLinesTl
             }
         end
       else
@@ -918,13 +907,13 @@ struct
                      isInLimit
                        (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
                        *)
-                   false
+                   true
                  then
                    let
+                     (* VERIFIED TO WORK *)
                      val _ = print "line 650\n"
                      val nextLine = curLine + Vector.length rightLinesHd
                      val newLeftStringsHd = leftStringsHd ^ rightStringsHd
-                     (*
                      val newLeftLinesHd =
                        Vector.tabulate
                          ( Vector.length leftLinesHd
@@ -936,8 +925,7 @@ struct
                                Vector.sub
                                  (rightLinesHd, idx - Vector.length leftLinesHd)
                                + String.size leftStringsHd
-                        ) *)
-                     val newLeftLinesHd = countLineBreaks newLeftStringsHd
+                        ) 
                    in
                      moveRightAndIns
                        ( idx
