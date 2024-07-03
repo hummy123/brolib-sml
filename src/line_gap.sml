@@ -775,36 +775,52 @@ struct
             String.size strSub1 + String.size newString <= stringLimit
             andalso midpoint + Vector.length newLines <= vecLimit
             *)
-          false
+          true
         then
           (* If we can join newString/lines with sub1 while
            * staying in limit. *)
           let
+            (* VERIFIED *)
             (* strSub1 ^ newString is placed on the left list. *)
             val _ = print "line 552\n"
             val newLeftStringsHd = strSub1 ^ newString
-            (*
-            val newLeftLinesHd =
-            Vector.tabulate (Vector.length newLines + midpoint, fn idx =>
-              if idx < midpoint then Vector.sub (rightLinesHd, idx)
-              else Vector.sub (newLines, idx - midpoint) + String.size strSub1)
-              *)
-            val _ = print "line 584\n"
 
-          (*
-          val newRightLinesHd =
-            VectorSlice.slice (rightLinesHd, midpoint, SOME
-              (Vector.length rightLinesHd - midpoint))
-          val newRightLinesHd = VectorSlice.vector newRightLinesHd *)
+            val newLeftLinesHd =
+              if midpoint >= 0 then
+                (* Implicit: a binSearch match was found. *)
+                let
+                  val newLeftLinesLength = midpoint + 1 + Vector.length newLines
+                in
+                  Vector.tabulate (newLeftLinesLength, fn idx =>
+                    if idx <= midpoint then
+                      Vector.sub (rightLinesHd, idx)
+                    else
+                      Vector.sub (newLines, idx - (midpoint + 1))
+                      + String.size strSub1)
+                end
+              else
+                Vector.map (fn el => el + String.size strSub1) newLines
+
+            val _ = print "line 584\n"
+            val newRightLinesHd =
+              if midpoint >= 0 then
+                (* Implicit: a binSearch match was found. *)
+                Vector.tabulate
+                  ( (Vector.length rightLinesHd - midpoint) - 1
+                  , fn idx =>
+                      Vector.sub (rightLinesHd, idx + midpoint + 1)
+                      - String.size strSub1
+                  )
+              else
+                Vector.map (fn idx => idx - String.size strSub1) rightLinesHd
           in
             verifyReturn
               { idx = curIdx + String.size newLeftStringsHd
-              , line =
-                  curLine + Vector.length (countLineBreaks newLeftStringsHd)
+              , line = curLine + Vector.length newLeftLinesHd
               , leftStrings = newLeftStringsHd :: leftStrings
-              , leftLines = countLineBreaks newLeftStringsHd :: leftLines
+              , leftLines = newLeftLinesHd :: leftLines
               , rightStrings = strSub2 :: rightStringsTl
-              , rightLines = countLineBreaks strSub2 :: rightLinesTl
+              , rightLines = newRightLinesHd :: rightLinesTl
               }
           end
         else if
