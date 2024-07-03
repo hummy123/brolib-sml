@@ -172,7 +172,7 @@ struct
           else reverseLinearSearch (findNum, idx, lines)
         end
 
-    fun helpBinSearch (findNum, lines, low, high, prevLow, prevHigh) =
+    fun helpBinSearch (findNum, lines, low, high) =
       let
         val mid = low + ((high - low) div 2)
       in
@@ -183,34 +183,17 @@ struct
             if midVal = findNum then
               (print "return 173\n"; mid)
             else if midVal < findNum then
-              helpBinSearch (findNum, lines, mid + 1, high, low, high)
+              helpBinSearch (findNum, lines, mid + 1, high)
             else
-              helpBinSearch (findNum, lines, low, mid - 1, low, high)
+              helpBinSearch (findNum, lines, low, mid - 1)
           end
         else
-          let
-            val prevLowVal = Vector.sub (lines, prevLow)
-            val prevHighVal = Vector.sub (lines, prevHigh)
-            val _ = print ("prevLowVal: " ^ Int.toString prevLowVal ^ "\n")
-            val _ = print ("prevHighVal: " ^ Int.toString prevHighVal ^ "\n")
-            val _ = print ("findNum: " ^ Int.toString findNum ^ "\n")
-          in
-            (print "return 180\n"; reverseLinearSearch (findNum, mid, lines))
-          end
+          reverseLinearSearch (findNum, mid, lines)
       end
   in
     fun binSearch (findNum, lines) =
-      if Vector.length lines = 0 then
-        0
-      else
-        helpBinSearch
-          ( findNum
-          , lines
-          , 0
-          , Vector.length lines - 1
-          , 0
-          , Vector.length lines - 1
-          )
+      if Vector.length lines = 0 then 0
+      else helpBinSearch (findNum, lines, 0, Vector.length lines - 1)
   end
 
   fun insWhenIdxAndCurIdxAreEqual
@@ -688,7 +671,16 @@ struct
           (* VERIFIED TO WORK *)
           val _ = print "line 474\n"
           val newRightStringsHd = rightStringsHd ^ newString
-          val newRightLinesHd = countLineBreaks newRightStringsHd
+          val newRightLinesHd =
+            Vector.tabulate
+              ( Vector.length rightLinesHd + Vector.length newLines
+              , fn idx =>
+                  if idx < Vector.length rightLinesHd then
+                    Vector.sub (rightLinesHd, idx)
+                  else
+                    Vector.sub (newLines, idx - Vector.length rightLinesHd)
+                    + String.size rightStringsHd
+              )
         in
           verifyReturn
             { idx = curIdx
@@ -777,7 +769,6 @@ struct
             (* strSub1 ^ newString is placed on the left list. *)
             val _ = print "line 552\n"
             val newLeftStringsHd = strSub1 ^ newString
-
             val newLeftLinesHd =
               if midpoint >= 0 then
                 (* Implicit: a binSearch match was found. *)
@@ -842,7 +833,6 @@ struct
                 Vector.fromList []
 
             val newRightStringsHd = newString ^ strSub2
-
             val newRightLinesHd =
               Vector.tabulate
                 ( (Vector.length newLines + Vector.length rightLinesHd)
@@ -893,7 +883,7 @@ struct
             verifyReturn
               { idx = curIdx + String.size strSub1 + String.size newString
               , line =
-                  curLine + Vector.length (countLineBreaks newString)
+                  curLine + Vector.length newLines
                   + Vector.length lineSub1
               , leftStrings = newString :: strSub1 :: leftStrings
               , leftLines = newLines :: lineSub1 :: leftLines
