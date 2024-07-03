@@ -814,37 +814,49 @@ struct
             (Vector.length rightLinesHd - midpoint) + Vector.length newLines
             <= vecLimit
             *)
-          false
+          true
         then
           (* If we can join newString/line with sub2 while staying
            * in limit. *)
           let
+            (* VERIFIED TO WORK *)
             val _ = print "line 581\n"
+            val newLeftLinesHd =
+              if midpoint >= 0 then
+                let
+                  val newLeftLinesHd = VectorSlice.slice
+                    (rightLinesHd, 0, SOME (midpoint + 1))
+                in
+                  VectorSlice.vector newLeftLinesHd
+                end
+              else
+                Vector.fromList []
+
             val newRightStringsHd = newString ^ strSub2
-          (*
-          val newRightLinesHd =
-            Vector.tabulate
-              ( Vector.length newLines + Vector.length rightLinesHd - midpoint
-              , fn idx =>
-                  if idx < Vector.length newLines then
-                    Vector.sub (newLines, idx)
-                  else
-                    Vector.sub (rightLinesHd, idx - Vector.length newLines)
-                    + String.size newString
-              )
-          
-          val newLeftLinesHd =
-            VectorSlice.slice (rightLinesHd, 0, SOME midpoint)
-          val newLeftLinesHd = VectorSlice.vector newLeftLinesHd
-          *)
+
+            val newRightLinesHd =
+              Vector.tabulate
+                ( (Vector.length newLines + Vector.length rightLinesHd)
+                  - Vector.length newLeftLinesHd
+                , fn idx =>
+                    if idx < Vector.length newLines then
+                      Vector.sub (newLines, idx)
+                    else
+                      (Vector.sub
+                         ( rightLinesHd
+                         , (idx - Vector.length newLines)
+                           + Vector.length newLeftLinesHd
+                         ) - String.size strSub1) + String.size newString
+                )
+
           in
             verifyReturn
               { idx = curIdx + String.size strSub1
-              , line = curLine + Vector.length (countLineBreaks strSub1)
+              , line = curLine + Vector.length newLeftLinesHd
               , leftStrings = strSub1 :: leftStrings
-              , leftLines = countLineBreaks strSub1 :: leftLines
+              , leftLines = newLeftLinesHd :: leftLines
               , rightStrings = newRightStringsHd :: rightStringsTl
-              , rightLines = countLineBreaks newRightStringsHd :: rightLinesTl
+              , rightLines = newRightLinesHd :: rightLinesTl
               }
           end
         else
@@ -925,7 +937,7 @@ struct
                                Vector.sub
                                  (rightLinesHd, idx - Vector.length leftLinesHd)
                                + String.size leftStringsHd
-                        ) 
+                         )
                    in
                      moveRightAndIns
                        ( idx
