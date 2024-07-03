@@ -724,42 +724,35 @@ struct
         val midpoint = binSearch (String.size strSub1 - 1, rightLinesHd)
       in
         if
-          isThreeInLimit (strSub1, newString, strSub2, rightLinesHd, newLines)
+          (*
+            isThreeInLimit (strSub1, newString, strSub2, rightLinesHd, newLines)
+            *)
+          true
         then
           (* Join three strings together. *)
           let
+            (* VERIFIED TO WORK *)
             val _ = print "line 573\n"
             val newRightStringsHd = String.concat [strSub1, newString, strSub2]
 
-          (*
-          val newRightLinesHd =
-            Vector.tabulate
-              ( Vector.length rightLinesHd + Vector.length newLines
-              , fn idx =>
-                  if idx < midpoint then
-                    Vector.sub (rightLinesHd, idx)
-                  else if idx < midpoint + Vector.length newLines then
-                    let
-                      val result =
-                        Vector.sub (newLines, idx - midpoint) + String.size
-                        strSub1
-                      val _ = print "line 598\n"
-                      val _ = print ("result: " ^ Int.toString result ^ "\n")
-                    in
-                      result
-                    end
-                  else
-                    let
-                      val result =
+            val newRightLinesHd =
+              if Vector.length rightLinesHd > 0 then
+                Vector.tabulate
+                  ( Vector.length rightLinesHd + Vector.length newLines
+                  , fn idx =>
+                      if idx <= midpoint then
+                        Vector.sub (rightLinesHd, idx)
+                      else if idx <= midpoint + Vector.length newLines then
+                        Vector.sub (newLines, (idx - midpoint) - 1)
+                        + String.size strSub1
+                      else
                         Vector.sub
-                          (rightLinesHd, idx - Vector.length newLines)
+                          (rightLinesHd, (idx - Vector.length newLines))
                         + String.size newString
-                      val _ = print "line 606\n"
-                      val _ = print ("result: " ^ Int.toString result ^ "\n")
-                    in
-                      result
-                    end
-              ) *)
+                  )
+              else
+                Vector.map (fn el => el + String.size strSub1) newLines
+
           in
             verifyReturn
               { idx = curIdx
@@ -767,7 +760,7 @@ struct
               , leftStrings = leftStrings
               , leftLines = leftLines
               , rightStrings = newRightStringsHd :: rightStringsTl
-              , rightLines = countLineBreaks newRightStringsHd :: rightLinesTl
+              , rightLines = newRightLinesHd :: rightLinesTl
               }
           end
         else if
