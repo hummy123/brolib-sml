@@ -41,7 +41,6 @@ struct
     , rightLines: int vector list
     }
 
-
   val stringLimit = 1024
   val vecLimit = 32
 
@@ -268,45 +267,53 @@ struct
         then
           (* If we can join newString/lines with sub1 while
            * staying in limit. *)
-          let
-            val newLeftLines =
-              if midpoint >= 0 then
-                (* Implicit: a binSearch match was found. *)
-                let
-                  val newLeftLinesLength = midpoint + 1 + Vector.length newLines
-                in
-                  Vector.tabulate (newLeftLinesLength, fn idx =>
-                    if idx <= midpoint then
-                      Vector.sub (leftLinesHd, idx)
-                    else
-                      Vector.sub (newLines, idx - (midpoint + 1))
-                      + String.size strSub1)
-                end
-              else
-                Vector.map (fn el => el + String.size strSub1) newLines
+          if midpoint >= 0 then
+            (* Implicit: a binSearch match was found. *)
+            let
+              val newLeftLinesLength = midpoint + 1 + Vector.length newLines
+              val newLeftLines = Vector.tabulate (newLeftLinesLength, fn idx =>
+                if idx <= midpoint then
+                  Vector.sub (leftLinesHd, idx)
+                else
+                  Vector.sub (newLines, idx - (midpoint + 1))
+                  + String.size strSub1)
 
-            val newRightLines =
-              if midpoint >= 0 then
-                (* Implicit: a binSearch match was found. *)
+              val newRightLines =
                 Vector.tabulate
                   ( (Vector.length leftLinesHd - midpoint) - 1
                   , fn idx =>
                       Vector.sub (leftLinesHd, idx + midpoint + 1)
                       - String.size strSub1
                   )
-              else
+            in
+              { idx = prevIdx + String.size strSub1 + String.size newString
+              , line =
+                  (curLine - Vector.length leftLinesHd)
+                  + Vector.length newLeftLines
+              , leftStrings = (strSub1 ^ newString) :: leftStringsTl
+              , leftLines = newLeftLines :: leftLinesTl
+              , rightStrings = strSub2 :: rightStrings
+              , rightLines = newRightLines :: rightLines
+              }
+            end
+          else
+            let
+              (* No binSearch result found. *)
+              val newLeftLines =
+                Vector.map (fn el => el + String.size strSub1) newLines
+              val newRightLines =
                 Vector.map (fn idx => idx - String.size strSub1) leftLinesHd
-          in
-            { idx = prevIdx + String.size strSub1 + String.size newString
-            , line =
-                (curLine - Vector.length leftLinesHd)
-                + Vector.length newLeftLines
-            , leftStrings = (strSub1 ^ newString) :: leftStringsTl
-            , leftLines = newLeftLines :: leftLinesTl
-            , rightStrings = strSub2 :: rightStrings
-            , rightLines = newRightLines :: rightLines
-            }
-          end
+            in
+              { idx = prevIdx + String.size strSub1 + String.size newString
+              , line =
+                  (curLine - Vector.length leftLinesHd)
+                  + Vector.length newLeftLines
+              , leftStrings = (strSub1 ^ newString) :: leftStringsTl
+              , leftLines = newLeftLines :: leftLinesTl
+              , rightStrings = strSub2 :: rightStrings
+              , rightLines = newRightLines :: rightLines
+              }
+            end
         else if
           String.size newString + String.size strSub2 <= stringLimit
           andalso
@@ -594,50 +601,57 @@ struct
         then
           (* If we can join newString/lines with sub1 while
            * staying in limit. *)
-          let
-            (* strSub1 ^ newString is placed on the left list. *)
-            val newLeftStringsHd = strSub1 ^ newString
-            val newLeftLinesHd =
-              if midpoint >= 0 then
-                (* Implicit: a binSearch match was found. *)
-                let
-                  val newLeftLinesLength = midpoint + 1 + Vector.length newLines
-                in
-                  Vector.tabulate (newLeftLinesLength, fn idx =>
-                    if idx <= midpoint then
-                      Vector.sub (rightLinesHd, idx)
-                    else
-                      Vector.sub (newLines, idx - (midpoint + 1))
-                      + String.size strSub1)
-                end
-              else
-                Vector.map (fn el => el + String.size strSub1) newLines
+          if midpoint >= 0 then
+            let
+              (* Implicit: a binSearch match was found. *)
+              val newLeftStringsHd = strSub1 ^ newString
+              val newLeftLinesLength = midpoint + 1 + Vector.length newLines
+              val newLeftLinesHd =
+                Vector.tabulate (newLeftLinesLength, fn idx =>
+                  if idx <= midpoint then
+                    Vector.sub (rightLinesHd, idx)
+                  else
+                    Vector.sub (newLines, idx - (midpoint + 1))
+                    + String.size strSub1)
 
-            val newRightLinesHd =
-              if midpoint >= 0 then
-                (* Implicit: a binSearch match was found. *)
+              val newRightLinesHd =
                 Vector.tabulate
                   ( (Vector.length rightLinesHd - midpoint) - 1
                   , fn idx =>
                       Vector.sub (rightLinesHd, idx + midpoint + 1)
                       - String.size strSub1
                   )
-              else
+            in
+              { idx = curIdx + String.size newLeftStringsHd
+              , line = curLine + Vector.length newLeftLinesHd
+              , leftStrings = newLeftStringsHd :: leftStrings
+              , leftLines = newLeftLinesHd :: leftLines
+              , rightStrings = strSub2 :: rightStringsTl
+              , rightLines = newRightLinesHd :: rightLinesTl
+              }
+            end
+          else
+            let
+              (* No binSearch match found. *)
+              val newLeftStringsHd = strSub1 ^ newString
+              val newLeftLinesHd =
+                Vector.map (fn el => el + String.size strSub1) newLines
+              val newRightLinesHd =
                 Vector.map (fn idx => idx - String.size strSub1) rightLinesHd
-          in
-            { idx = curIdx + String.size newLeftStringsHd
-            , line = curLine + Vector.length newLeftLinesHd
-            , leftStrings = newLeftStringsHd :: leftStrings
-            , leftLines = newLeftLinesHd :: leftLines
-            , rightStrings = strSub2 :: rightStringsTl
-            , rightLines = newRightLinesHd :: rightLinesTl
-            }
-          end
+            in
+              { idx = curIdx + String.size newLeftStringsHd
+              , line = curLine + Vector.length newLeftLinesHd
+              , leftStrings = newLeftStringsHd :: leftStrings
+              , leftLines = newLeftLinesHd :: leftLines
+              , rightStrings = strSub2 :: rightStringsTl
+              , rightLines = newRightLinesHd :: rightLinesTl
+              }
+            end
         else if
-            String.size newString + String.size strSub2 <= stringLimit
-            andalso
-            (Vector.length rightLinesHd - midpoint) + Vector.length newLines
-            <= vecLimit
+          String.size newString + String.size strSub2 <= stringLimit
+          andalso
+          (Vector.length rightLinesHd - midpoint) + Vector.length newLines
+          <= vecLimit
         then
           (* If we can join newString/line with sub2 while staying
            * in limit. *)
@@ -668,7 +682,6 @@ struct
                            + Vector.length newLeftLinesHd
                          ) - String.size strSub1) + String.size newString
                 )
-
           in
             { idx = curIdx + String.size strSub1
             , line = curLine + Vector.length newLeftLinesHd
@@ -729,8 +742,8 @@ struct
             (case (leftStrings, leftLines) of
                (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
                  if
-                     isInLimit
-                       (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
+                   isInLimit
+                     (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
                  then
                    let
                      val nextLine = curLine + Vector.length rightLinesHd
@@ -805,13 +818,13 @@ struct
         end
     | (_, _) =>
         (* Right string/line is empty. *)
-          { idx = curIdx
-          , line = curLine
-          , leftStrings = leftStrings
-          , leftLines = leftLines
-          , rightStrings = [newString]
-          , rightLines = [newLines]
-          }
+        { idx = curIdx
+        , line = curLine
+        , leftStrings = leftStrings
+        , leftLines = leftLines
+        , rightStrings = [newString]
+        , rightLines = [newLines]
+        }
 
   fun ins
     ( idx
