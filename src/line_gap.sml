@@ -986,6 +986,95 @@ struct
             }
         end
 
+  fun moveRightAndDelete
+    ( start
+    , finish
+    , curIdx
+    , curLine
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    ) =
+    case (rightStrings, rightLines) of
+      (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
+        let
+          val nextIdx = curIdx + String.size rightLinesHd
+        in
+          if nextIdx < start then
+            (* Keep moving right. 
+             * Complicated code below is an optimsation to reduce number of
+             * elements in the gap buffer.
+             * If we can join left head with right head while staying in limit, then
+             * do so; else, just cons as we move. *)
+            (case (leftStrings, leftLines) of
+               (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
+                 if
+                   isInLimit
+                     (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
+                 then
+                   (* We can join the heads while staying in limit, so do so. *)
+                   let
+                     val newLeftStringsHd = leftStringsHd ^ rightStringsHd
+                     val newLeftLinesHd =
+                       Vector.tabulate
+                         ( Vector.length leftLinesHd
+                           + Vector.length rightLinesHd
+                         , fn idx =>
+                             if idx < Vector.length leftLinesHd then
+                               Vector.sub (leftLinesHd, idx)
+                             else
+                               Vector.sub
+                                 (rightLinesHd, idx - Vector.length leftLinesHd)
+                               + String.size leftStringsHd
+                         )
+                     val newLeftStrings = newLeftStringsHd :: leftStringsTl
+                     val newLeftLines = newLeftLinesHd :: leftLinesTl
+                   in
+                     moveRightAndDelete
+                       ( start
+                       , finish
+                       , nextIdx
+                       , curLine + Vector.length rightLinesHd
+                       , newLeftStrings
+                       , newLeftLines
+                       , rightStringsTl
+                       , rightLinesTl
+                       )
+                   end
+                 else
+                   (* Can't join heads while staying in limit, so just cons. *)
+                   moveRightAndDelete
+                     ( start
+                     , finish
+                     , nextIdx
+                     , curLine + Vector.length rightLinesHd
+                     , rightStringsHd :: leftStrings
+                     , rightLinesHd :: leftLines
+                     , rightStringsTl
+                     , rightLinesTl
+                     )
+             | (_, _) =>
+                 (* Can't join heads while staying in limit, so just cons. *)
+                 moveRightAndDelete
+                   ( start
+                   , finish
+                   , nextIdx
+                   , curLine + Vector.length rightLinesHd
+                   , rightStringsHd :: leftStrings
+                   , rightLinesHd :: leftLines
+                   , rightStringsTl
+                   , rightLinesTl
+                   ))
+          else if nextIdx > start then
+            (* PLACEHOLDER.
+             * Equivalent of line 243 of gap_buffer.sml. 
+             * *)
+            0
+          else
+            0
+        end
+
 
   (* TEST CODE *)
   local
