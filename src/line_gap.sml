@@ -71,6 +71,7 @@ struct
     String.size s1 + String.size s2 + String.size s3 <= stringLimit
     andalso Vector.length v1 + Vector.length v2 <= vecLimit
 
+  (* Binary search. If value isn't found, returns the value before it. *)
   local
     fun reverseLinearSearch (findNum, idx, lines) =
       if idx < 0 then
@@ -103,6 +104,43 @@ struct
       end
   in
     fun binSearch (findNum, lines) =
+      if Vector.length lines = 0 then 0
+      else helpBinSearch (findNum, lines, 0, Vector.length lines - 1)
+  end
+
+  (* Binary search. If value isn't found, returns the value after it. *)
+  local
+    fun forwardLinearSearch (findNum, idx, lines) =
+      if idx = Vector.length lines then
+        idx
+      else
+        let
+          val curVal = Vector.sub (lines, idx)
+        in
+          if curVal > findNum then idx
+          else forwardLinearSearch (findNum, idx, lines)
+        end
+
+    fun helpBinSearch (findNum, lines, low, high) =
+      let
+        val mid = low + ((high - low) div 2)
+      in
+        if high >= low then
+          let
+            val midVal = Vector.sub (lines, mid)
+          in
+            if midVal = findNum then
+              mid
+            else if midVal < findNum then
+              helpBinSearch (findNum, lines, mid + 1, high)
+            else
+              helpBinSearch (findNum, lines, low, mid - 1)
+          end
+        else
+          forwardLinearSearch (findNum, mid, lines)
+      end
+  in
+    fun forwardBinSearch (findNum, lines) =
       if Vector.length lines = 0 then 0
       else helpBinSearch (findNum, lines, 0, Vector.length lines - 1)
   end
@@ -1067,10 +1105,126 @@ struct
                    , rightLinesTl
                    ))
           else if nextIdx > start then
-            (* PLACEHOLDER.
-             * Equivalent of line 243 of gap_buffer.sml. 
-             * *)
-            0
+            if nextIdx < finish then
+              (* Start deleting from the end of this string,
+               * and then continue deleting rightwards. *)
+              let
+                val length = start - curIdx
+                val newString = String.substring (rightStringsHd, 0, length)
+
+                val lineDeleteEnd = binSearch
+                  (String.size newString - 1, rightLinesHd)
+                val newLines =
+                  if lineDeleteEnd >= 0 then
+                    let
+                      val slice = VectorSlice.slice
+                        (rightLinesHd, 0, SOME (lineDeleteEnd + 1))
+                    in
+                      VectorSlice.vector slice
+                    end
+                  else
+                    Vector.fromList []
+                val nextLine = curLine + Vector.length newLines
+              in
+                (* Try joining new string with left head if possible. *)
+                (case (leftStrings, leftLines) of
+                   (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
+                     if
+                       isInLimit
+                         (newString, leftStringsHd, newLines, leftLinesHd)
+                     then
+                       (* Join new string with left head. *)
+                       let
+                         val newLeftStringsHd = leftStringsHd ^ newString
+                         val newLeftLinesHd =
+                           Vector.tabulate
+                             ( Vector.length leftLinesHd
+                               + Vector.length newLines
+                             , fn idx =>
+                                 if idx < Vector.length leftLinesHd then
+                                   Vector.sub (leftLinesHd, idx)
+                                 else
+                                   Vector.sub
+                                     (newLines, idx - Vector.length leftLinesHd)
+                                   + String.size leftStringHd
+                             )
+                       in
+                         deleteRightFromHere
+                           ( nextIdx
+                           , nextLine
+                           , finish
+                           , newLeftStringsHd :: leftStringsTl
+                           , newLeftLinesHd :: leftLinesTl
+                           , rightStringsTl
+                           , rightLinesTl
+                           )
+                       end
+                     else
+                       (* Can't join new string with left head
+                       * while staying in limit, so just cons. *)
+                       deleteRightFromHere
+                         ( nextIdx
+                         , nextLine
+                         , finish
+                         , newString :: leftStrings
+                         , newLines :: leftLinesHd
+                         , rightStringsTl
+                         , rightLinesTl
+                         )
+                 | (_, _) =>
+                     deleteRightFromHere
+                       ( nextIdx
+                       , nextLine
+                       , finish
+                       , newString :: leftStrings
+                       , newLines :: leftLinesHd
+                       , rightStringsTl
+                       , rightLinesTl
+                       ))
+              end
+            else if nextIdx > finish then
+              (* Base case: delete from the middle part of this string. *)
+              let
+                val sub1Length = start - curIdx
+                val sub1 = String.substring (rightStringsHd, 0, sub1Length)
+                val sub1LineEnd = binSearch (String.size sub1 - 1, rightLinesHd)
+                val sub1Lines =
+                  if sub1LineEnd >= 0 then
+                    let
+                      val slice = VectorSlice.slice
+                        (rightLinesHd, 0, SOME (sub1LineEnd + 1))
+                    in
+                      VectorSlice.vector slice
+                    end
+                  else
+                    Vector.fromList []
+
+                val sub2Start = finish - curIdx
+                val sub2 = String.substring
+                  ( rightStringsHd
+                  , sub2Start
+                  , String.size rightStringsHd - sub2Start
+                  )
+                val sub2LineStart = forwardBinSearch (sub2Start, rightLinesHd)
+                val sub2Lines =
+                  if sub2LineStart < Vector.length rightLinesHd then
+                    Vector.tabulate
+                      ( Vector.length rightLinesHd - Vector.length sub1Lines
+                      , fn idx =>
+                          Vector.sub (rightLinesHd, idx + sub2LineStart)
+                          - (String.size rightStringsHd - String.size sub2)
+                      )
+                  else
+                    Vector.fromList []
+              in
+                (* To do: 
+                 * Try joining sub1 with left head and sub2 with right head,
+                 * if we can do so while staying in limit.
+                 * *)
+                0
+              end
+            else
+              0
           else
             0
         end
