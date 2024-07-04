@@ -107,7 +107,7 @@ struct
       else helpBinSearch (findNum, lines, 0, Vector.length lines - 1)
   end
 
-  (* Helper functions for insertion operation. *)
+  (* Insert function and helper functions for it. *)
   local
     fun insWhenIdxAndCurIdxAreEqual
       ( newString
@@ -908,6 +908,83 @@ struct
           )
       end
   end
+
+  (* Delete function and helper functions for it. *)
+  fun deleteRightFromHere
+    ( origIdx
+    , origLine
+    , moveIdx
+    , finish
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    ) =
+    case (rightStrings, rightLines) of
+      (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
+        let
+          val nextIdx = moveIdx + String.size rightStringsHd
+        in
+          if nextIdx < finish then
+            (* Keep moving right. *)
+            deleteRightFromHere
+              ( origIdx
+              , origLine
+              , nextIdx
+              , finish
+              , leftStrings
+              , leftLines
+              , rightStringsTl
+              , rightLinesTl
+              )
+          else if nextIdx > finish then
+            (* Base case: delete from the start of this string and stop moving. *)
+            let
+              (* Delete part of string. *)
+              val newStrStart = finish - curIdx
+              val newStr = String.substring
+                (hd, newStrStart, String.size hd - newStrStart)
+
+              (* Delete from line vector if we need to. *)
+              val newLines =
+                if Vector.length rightLinesHd > 0 then
+                  let
+                    val lineDeleteEnd = binSearch
+                      (String.size newStr - 1, rightLinesHd)
+                  in
+                    if lineDeleteEnd >= 0 then
+                      Vector.tabulate
+                        ( Vector.length rightLinesHd - lineDeleteEnd
+                        , fn idx =>
+                            Vector.sub (rightLinesHd, idx + lineDeleteEnd + 1)
+                            - newStrStart
+                        )
+                    else
+                      (* Subtract by difference in length, which is same as
+                       * newStrStart. *)
+                      Vector.map (fn idx => idx - newStrStart) rightLinesHd
+                  end
+                else
+                  rightLinesHd (* empty vector *)
+            in
+              { idx = origIdx
+              , line = origLine
+              , leftStrings = leftStrings
+              , leftLines = leftLines
+              , rightStrings = newStr :: rightStringTl
+              , rightLines = newLines :: rightLinesTl
+              }
+            end
+          else
+            (* Delete this node fully, but delete no further. *)
+            { idx = origIdx
+            , line = origLine
+            , leftStrings = leftStrings
+            , leftLines = leftLines
+            , rightStrings = rightStringsTl
+            , rightLines = rightLinesTl
+            }
+        end
 
 
   (* TEST CODE *)
