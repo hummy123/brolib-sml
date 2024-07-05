@@ -1217,13 +1217,127 @@ struct
                   else
                     Vector.fromList []
               in
-                (* To do: 
-                 * Try joining sub1 with left head and sub2 with right head,
-                 * if we can do so while staying in limit.
-                 * *)
-                0
+                (case (leftStrings, leftLines) of
+                   (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
+                     let
+                       val isLeftInLimit =
+                         isInLimit (leftStringsHd, sub1, leftLinesHd, sub1Lines)
+                       val isRightInLimit =
+                         isInLimit
+                           (rightStringsHd, sub2, rightLinesHd, sub2Lines)
+                     in
+                       if isLeftInLimit andalso isRightInLimit then
+                         let
+                           val newLeftStringsHd = leftStringsHd ^ sub1
+                           val newLinesLinesHd =
+                             Vector.tabulate
+                               ( Vector.length leftLinesHd
+                                 + Vector.length sub1Lines
+                               , fn idx =>
+                                   if idx < Vector.length leftLinesHd then
+                                     Vector.sub (leftLinesHd, idx)
+                                   else
+                                     Vector.sub
+                                       ( sub1Lines
+                                       , idx - Vector.length leftLinesHd
+                                       ) + String.size leftStringsHd
+                               )
+
+                           val newRightStringsHd = sub2 ^ rightStringsHd
+                           val newRightLinesHd =
+                             Vector.tabulate
+                               ( Vector.length rightLinesHd
+                                 + Vector.length sub2Lines
+                               , fn idx =>
+                                   if idx < Vector.length sub2Lines then
+                                     Vector.sub (sub2Lines, idx)
+                                   else
+                                     Vector.sub
+                                       ( rightLinesHd
+                                       , idx - Vector.length sub2Lines
+                                       ) + String.size sub2
+                               )
+                         in
+                           { idx = curIdx + String.size sub1
+                           , line = curLine + Vector.length sub1Lines
+
+                           , leftStrings = newLeftStringsHd :: leftStringsTl
+                           , leftLines = newLeftLinesHd :: leftLinesTl
+                           , rightStrings = newRightStringsHd :: rightStringsTl
+                           , rightLines = newRightLinesHd :: rightLinesTl
+                           }
+                         end
+                       else if isLeftInLimit then
+                         let
+                           val newLeftStringsHd = leftStringsHd ^ sub1
+                           val newLinesLinesHd =
+                             Vector.tabulate
+                               ( Vector.length leftLinesHd
+                                 + Vector.length sub1Lines
+                               , fn idx =>
+                                   if idx < Vector.length leftLinesHd then
+                                     Vector.sub (leftLinesHd, idx)
+                                   else
+                                     Vector.sub
+                                       ( sub1Lines
+                                       , idx - Vector.length leftLinesHd
+                                       ) + String.size leftStringsHd
+                               )
+                         in
+                           { idx = curIdx + String.size sub1
+                           , line = curLine + Vector.length sub1Lines
+                           , leftStrings = newLeftStringsHd :: leftStringsTl
+                           , leftLines = newLeftLinesHd :: leftLinesTl
+                           , rightStrings = sub2 :: rightStrings
+                           , rightLines = sub2Lines :: rightLines
+                           }
+                         end
+                       else if isRightInLimit then
+                         let
+                           val newRightStringsHd = sub2 ^ rightStringsHd
+                           val newRightLinesHd =
+                             Vector.tabulate
+                               ( Vector.length rightLinesHd
+                                 + Vector.length sub2Lines
+                               , fn idx =>
+                                   if idx < Vector.length sub2Lines then
+                                     Vector.sub (sub2Lines, idx)
+                                   else
+                                     Vector.sub
+                                       ( rightLinesHd
+                                       , idx - Vector.length sub2Lines
+                                       ) + String.size sub2
+                               )
+                         in
+                           { idx = curIdx + String.size sub1
+                           , line = curLine + Vector.length sub1Lines
+
+                           , leftStrings = sub1 :: leftStrings
+                           , leftLines = sub1Lines :: leftLines
+                           , rightStrings = newRightStringsHd :: rightStringsTl
+                           , rightLines = newRightLinesHd :: rightLinesTl
+                           }
+                         end
+                       else
+                         { idx = curIdx + String.size sub1
+                         , line = curLine + Vector.length sub1Lines
+                         , leftStrings = sub1 :: leftStrings
+                         , leftLins = sub1Lines :: leftLines
+                         , rightStrings = sub2 :: rightStrings
+                         , rightLines = sub2Lines :: rightLines
+                         }
+                     end
+                 | (_, _) =>
+                     { idx = curIdx + String.size sub1
+                     , line = curLine + Vector.length sub1Lines
+                     , leftStrings = sub1 :: leftStrings
+                     , leftLins = sub1Lines :: leftLines
+                     , rightStrings = sub2 :: rightStrings
+                     , rightLines = sub2Lines :: rightLines
+                     })
               end
             else
+              (* nextIdx = finish *)
               0
           else
             0
