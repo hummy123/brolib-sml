@@ -1322,7 +1322,7 @@ struct
                          { idx = curIdx + String.size sub1
                          , line = curLine + Vector.length sub1Lines
                          , leftStrings = sub1 :: leftStrings
-                         , leftLins = sub1Lines :: leftLines
+                         , leftLines = sub1Lines :: leftLines
                          , rightStrings = sub2 :: rightStrings
                          , rightLines = sub2Lines :: rightLines
                          }
@@ -1331,16 +1331,54 @@ struct
                      { idx = curIdx + String.size sub1
                      , line = curLine + Vector.length sub1Lines
                      , leftStrings = sub1 :: leftStrings
-                     , leftLins = sub1Lines :: leftLines
+                     , leftLines = sub1Lines :: leftLines
                      , rightStrings = sub2 :: rightStrings
                      , rightLines = sub2Lines :: rightLines
                      })
               end
             else
-              (* nextIdx = finish *)
-              0
+              (* nextIdx = finish 
+               * Base case: delete from middle to end of this string, keeping start. *)
+              let
+                val strLength = start - curIdx
+                val str = String.substring (rightStringsHd, 0, strLength)
+                val midpoint = binSearch (String.size str - 1, rightLinesHd)
+                val newLeftLines =
+                  if midpoint >= 0 then
+                    let
+                      val slice = VectorSlice.slice
+                        (leftLines, 0, SOME (midpoint + 1))
+                    in
+                      VectorSlice.vector slice
+                    end
+                  else
+                    Vector.fromList []
+              in
+                { idx = curIdx + strLength
+                , line = curLine + Vector.length newLeftLines
+                , leftStrings = str :: leftStrings
+                , leftLines = newLeftLines :: leftLines
+                , rightStrings = rightStringsTl
+                , rightLines = rightLinesTl
+                }
+              end
           else
-            0
+            (* nextIdx = start
+             * Another base case of this function.
+             * The start of the deletion range contains the rightStrings/LinesHd,
+             * and it may extend beyond the current head. 
+             * So pass the rightStringsTl and rightLinesTl to a function that
+             * will delete rightwards if it needs to, or else terminates. *)
+            deleteRightFromHere
+              ( curIdx
+              , curLine
+              , curIdx
+              , finish
+              , leftStrings
+              , leftLines
+              , rightStringsTl
+              , rightLinesTl
+              )
         end
 
 
