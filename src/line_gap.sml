@@ -1380,6 +1380,75 @@ struct
               , rightLinesTl
               )
         end
+    | (_, _) =>
+        { idx = curIdx
+        , line = curLine
+        , leftStrings = leftStrings
+        , leftLines = leftLines
+        , rightStrings = rightStrings
+        , rightLines = rightLines
+        }
+
+  fun deleteLeftFromHere
+    (start, curIdx, curLines, leftStrings, leftLines, rightStrings, rightLines) =
+    case (leftStrings, leftLines) of
+      (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
+        let
+          val prevIdx = curIdx - String.size leftStringsHd
+          val prevLine = curLine - Vector.length leftLinesHd
+        in
+          if start < prevIdx then
+            (* Continue deleting leftward. *)
+            deleteLeftFromHere
+              ( start
+              , prevIdx
+              , prevLine
+              , leftStringsTl
+              , leftLinesTl
+              , rightStrings
+              , rightLines
+              )
+          else if start > prevIdx then
+            (* Base case: delete end part of this string and return. *)
+            let
+              val length = start - prevIdx
+              val newStr = String.substring (leftStringsHd, 0, length)
+              val midpoint = binSearch (String.size newStr - 1, leftLinesHd)
+              val newLines =
+                let
+                  val slice = VectorSlice.slice
+                    (leftLinesHd, 0, SOME (midpoint + 1))
+                in
+                  VectorSlice.vector slice
+                end
+            in
+              { idx = prevIdx + String.size newStr
+              , line = prevLine + Vector.length newLines
+              , leftStrings = newStr :: leftStringsTl
+              , leftLines = newLines :: leftLinesTl
+              , rightStrings = rightStrings
+              , rightLines = rightLines
+              }
+            end
+          else
+            (* start = prevIdx 
+             * Base case: Remove leftStrings/LinesHd without removing any further. *)
+            { idx = prevIdx
+            , line = prevLine
+            , leftStrings = leftStringsTl
+            , leftLines = leftLinesTl
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
+        end
+    | (_, _) =>
+        { idx = curIdx
+        , line = curLine
+        , leftStrings = leftStrings
+        , leftLines = leftLines
+        , rightStrings = rightStrings
+        , rightLines = rightLines
+        }
 
 
   (* TEST CODE *)
