@@ -1450,6 +1450,46 @@ struct
         , rightLines = rightLines
         }
 
+  fun deleteFromLetAndRight
+    ( start
+    , finish
+    , curIdx
+    , curLine
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    ) =
+    let
+      val
+        { idx = curIdx
+        , line = curLine
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        } = deleteRightFromHere
+        ( curIdx
+        , curLine
+        , curIdx
+        , finish
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        )
+    in
+      deleteLeftFromHere
+        ( start
+        , curIdx
+        , curLine
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        )
+    end
+
 
   (* TEST CODE *)
   local
