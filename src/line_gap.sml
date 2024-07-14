@@ -1490,6 +1490,131 @@ struct
         )
     end
 
+  fun moveLeftAndDelete
+    ( start
+    , finish
+    , curIdx
+    , curLine
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    ) =
+    case (leftStrings, leftLines) of
+      (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
+        let
+          val prevIdx = curIdx - String.size leftStringsHd
+        in
+          if prevIdx > finish then
+            (* Have to continue moving leftwards. 
+             * Case statement below is an optimisation attempt: 
+             * We are trying to join strings and line-vectors while staying in
+             * limit if this is possible while staying in limit.
+             * If this is not possible, we just cons instead. *)
+            (case (rightStrings, rightLines) of
+               (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
+                 if
+                   isInLimit
+                     (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
+                 then
+                   (* Can join while staying in limit, so do join. *)
+                   let
+                     val newRightStringsHd = leftStringsHd ^ rightStringsHd
+                     val newRightLinesHd =
+                       Vector.tabulate
+                         ( Vector.length leftLinesHd
+                           + Vector.length rightLinesHd
+                         , fn idx =>
+                             if idx < Vector.length leftLinesHd then
+                               Vector.sub (leftLinesHd, idx)
+                             else
+                               Vector.sub
+                                 (rightLinesHd, idx - Vector.length leftLinesHd)
+                               + String.size leftStringsHd
+                         )
+                     val newRightStrings = newRightStringsHd :: rightStringsTl
+                     val newRightLines = newRightLinesHd :: rightLinesTl
+                   in
+                     moveLeftAndDelete
+                       ( start
+                       , finish
+                       , prevIdx
+                       , curLine - Vector.length leftLinesHd
+                       , leftStringsTl
+                       , leftLinesTl
+                       , newRightStrings
+                       , newRightLines
+                       )
+                   end
+                 else
+                   (* Cannot join while staying in limit, so don't. *)
+                   moveLeftAndDelete
+                     ( start
+                     , finish
+                     , prevIdx
+                     , curLine - Vector.length leftLinesHd
+                     , leftStringsTl
+                     , leftLinesTl
+                     , leftStringsHd :: rightStrings
+                     , leftLinesHd :: rightLines
+                     )
+             | (_, _) =>
+                 (* Base case: reached empty list while trying to move leftwards.
+                  * Cannot do anything so just return. *)
+                 { idx = 0
+                 , line = 0
+                 , leftStrings = leftStrings
+                 , leftLines = leftLines
+                 , rightStrings = rightStrings
+                 , rightLines = rightLines
+                 })
+          else if prevIdx < finish then
+            if prevIdx > start then
+              (* Delete from start point of this string,
+               * and then call function to continue deleting leftwards. *)
+              let
+                val stringStart = finish - prevIdx
+                val newString = String.substring
+                  ( leftStringsHd
+                  , stringStart
+                  , String.size leftStringsHd - stringStart
+                  )
+                val newLines =
+                  let
+                    val midpoint = binSearch
+                      (String.size newString - 1, leftLinesHd)
+                  in
+                    if midpoint >= 0 then
+                      let
+                        val slice = VectorSlice.slice
+                          (leftLinesHd, 0, SOME (midpoint + 1))
+                      in
+                        VectorSlice.vector slice
+                      end
+                    else
+                      Vector.fromList []
+                  end
+                val newRightStrings = newString :: rightStrings
+                val newRightLines = newLines :: rightLines
+                val prevLine = curLine - Vector.length leftLinesHd
+              in
+                deleteLeftFromHere
+                  ( start
+                  , prevIdx
+                  , prevLine
+                  , leftStringsTl
+                  , leftLinesTl
+                  , newRightStrings
+                  , newRightLines
+                  )
+              end
+            else
+              (* Equivalent in gap_buffer.sml is line 350. *)
+              0
+          else
+            0
+        end
+
 
   (* TEST CODE *)
   local
