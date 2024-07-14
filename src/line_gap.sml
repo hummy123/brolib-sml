@@ -1608,9 +1608,18 @@ struct
                   , newRightLines
                   )
               end
-            else
+            else if prevIdx < start then
               (* Equivalent in gap_buffer.sml is line 350. *)
+              (* We want to delete in the middle of lefStringsHd. *)
+              let
+                val sub1Length = start - prevIdx
+                val sub1 = String.substring (leftStringsHd, 0, sub1Length)
+                val sub2Start = finish - prevIdx
+                val sub2 = String.substring (leftStringsHd, sub2Start,
+                String.size leftStringsHd - sub2Start)
+              in
               0
+              end
           else
             0
         end
