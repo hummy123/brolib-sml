@@ -1662,12 +1662,104 @@ struct
                 }
               end
             else
-              (* Equivalent in gap_buffer.sml is line 365. *)
-              0
+              (* prevIdx = start 
+               * We want to delete from the start of this string and stop. *)
+              let
+                val strStart = finish - prevIdx
+                val str = String.substring
+                  ( leftStringsHd
+                  , strStart
+                  , String.size leftStringsHd - strStart
+                  )
+                val lines =
+                  let
+                    val lineStart = forwardBinSearch (strStart, leftLinesHd)
+                  in
+                    if lineStart < Vector.length leftLinesHd then
+                      Vector.tabulate
+                        ( Vector.length leftLinesHd - lineStart
+                        , fn idx =>
+                            Vector.sub (leftLinesHd, idx + lineStart) - strStart
+                        )
+                    else
+                      Vector.fromList []
+                  end
+              in
+                { idx = prevIdx
+                , line = (curLine - Vector.length leftLinesHd) + String.size str
+                , leftStrings = str :: leftStringsTl
+                , leftLines = lines :: leftLinesTl
+                , rightStrings = rightStrings
+                , rightLines = rightLines
+                }
+              end
           else
-            0
+            (* prevIdx = finish 
+             * We need to call a function that will start deleting from prevIdx. 
+             * Optimsation: Try joining leftStrings/LinesHd with
+             * rightStrings/LinesHd if possible while staying in limit. *)
+            (case (rightStrings, rightLines) of
+               (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
+                 if
+                   isInLimit
+                     (leftStringsHd, rightStringsHd, leftLinesHd, rightLinesHd)
+                 then
+                   (* Can join while staying in limit. *)
+                   let
+                     val newRightStringsHd = leftStringsHd ^ rightStringsHd
+                     val newRightLinesHd =
+                       Vector.tabulate
+                         ( Vector.length leftLinesHd
+                           + Vector.length rightLinesHd
+                         , fn idx =>
+                             if idx < Vector.length leftLinesHd then
+                               Vector.sub (leftLinesHd, idx)
+                             else
+                               Vector.sub
+                                 (rightLinesHd, idx - Vector.length leftLinesHd)
+                               + String.size leftStringsHd
+                         )
+                   in
+                     deleteLeftFromHere
+                       ( start
+                       , prevIdx
+                       , curLine - Vector.length leftLinesHd
+                       , leftStringsTl
+                       , leftLinesTl
+                       , newRightStringsHd :: rightStringsTl
+                       , newRightLinesHd :: rightLinesTl
+                       )
+                   end
+                 else
+                   (* Cannot join while staying in limit. *)
+                   deleteLeftFromHere
+                     ( start
+                     , prevIdx
+                     , curLine - Vector.length leftLinesHd
+                     , leftStringsTl
+                     , leftLinesTl
+                     , leftStringsHd :: rightStrings
+                     , leftLinesHd :: rightLines
+                     )
+             | (_, _) =>
+                 (* Left strings and lines are empty, so just return. *)
+                 { idx = 0
+                 , line = 0
+                 , leftStrings = []
+                 , leftLines = []
+                 , rightStrings = rightStrings
+                 , rightLines = rightLines
+                 })
         end
-
+    | (_, _) =>
+        (* Can't move further leftward so just return. *)
+        { idx = 0
+        , line = 0
+        , leftStrings = []
+        , leftLines = []
+        , rightStrings = rightStrings
+        , rightLines = rightLines
+        }
 
   (* TEST CODE *)
   local
