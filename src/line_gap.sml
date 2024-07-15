@@ -947,6 +947,8 @@ struct
       end
   end
 
+  fun println str = print (str ^ "\n")
+
   (* Delete function and helper functions for it. *)
   local
     fun deleteRightFromHere
@@ -991,6 +993,7 @@ struct
                 val newLines =
                   if Vector.length rightLinesHd > 0 then
                     let
+                      val _ = println "996"
                       val lineDeleteEnd = binSearch
                         (String.size newStr - 1, rightLinesHd)
                     in
@@ -1070,6 +1073,7 @@ struct
                      (* We can join the heads while staying in limit, so do so. *)
                      let
                        val newLeftStringsHd = leftStringsHd ^ rightStringsHd
+                       val _ = println "1076"
                        val newLeftLinesHd: int vector =
                          Vector.tabulate
                            ( Vector.length leftLinesHd
@@ -1134,6 +1138,7 @@ struct
                   val newLines =
                     if lineDeleteEnd >= 0 then
                       let
+                       val _ = println "1141"
                         val slice = VectorSlice.slice
                           (rightLinesHd, 0, SOME (lineDeleteEnd + 1))
                       in
@@ -1155,6 +1160,7 @@ struct
                          (* Join new string with left head. *)
                          let
                            val newLeftStringsHd = leftStringsHd ^ newString
+                           val _ = println "1163"
                            val newLeftLinesHd =
                              Vector.tabulate
                                ( Vector.length leftLinesHd
@@ -1215,6 +1221,7 @@ struct
                   val sub1Lines =
                     if sub1LineEnd >= 0 then
                       let
+                        val _ = println "1224"
                         val slice = VectorSlice.slice
                           (rightLinesHd, 0, SOME (sub1LineEnd + 1))
                       in
@@ -1232,12 +1239,13 @@ struct
                   val sub2LineStart = forwardBinSearch (sub2Start, rightLinesHd)
                   val sub2Lines =
                     if sub2LineStart < Vector.length rightLinesHd then
+                      let val _ = println "1242" in
                       Vector.tabulate
                         ( Vector.length rightLinesHd - Vector.length sub1Lines
                         , fn idx =>
                             Vector.sub (rightLinesHd, idx + sub2LineStart)
                             - (String.size rightStringsHd - String.size sub2)
-                        )
+                        ) end
                     else
                       Vector.fromList []
                 in
@@ -1256,6 +1264,7 @@ struct
                          if isLeftInLimit andalso isRightInLimit then
                            let
                              val newLeftStringsHd = leftStringsHd ^ sub1
+                             val _ = println "1267"
                              val newLeftLinesHd =
                                Vector.tabulate
                                  ( Vector.length leftLinesHd
@@ -1271,6 +1280,7 @@ struct
                                  )
 
                              val newRightStringsHd = sub2 ^ rightStringsHd
+                             val _ = println "1283"
                              val newRightLinesHd =
                                Vector.tabulate
                                  ( Vector.length rightLinesHd
@@ -1298,6 +1308,7 @@ struct
                          else if isLeftInLimit then
                            let
                              val newLeftStringsHd = leftStringsHd ^ sub1
+                             val _ = println "1311"
                              val newLeftLinesHd =
                                Vector.tabulate
                                  ( Vector.length leftLinesHd
@@ -1323,6 +1334,7 @@ struct
                          else if isRightInLimit then
                            let
                              val newRightStringsHd = sub2 ^ rightStringsHd
+                             val _ = println "1337"
                              val newRightLinesHd =
                                Vector.tabulate
                                  ( Vector.length rightLinesHd
@@ -1375,6 +1387,7 @@ struct
                   val newLeftLines =
                     if midpoint >= 0 then
                       let
+                        val _ = println "1390"
                         val slice = VectorSlice.slice
                           (rightLinesHd, 0, SOME (midpoint + 1))
                       in
@@ -1445,6 +1458,7 @@ struct
                 val midpoint = binSearch (String.size newStr - 1, leftLinesHd)
                 val newLines =
                   let
+                    val _ = println "1461"
                     val slice = VectorSlice.slice
                       (leftLinesHd, 0, SOME (midpoint + 1))
                   in
@@ -1555,6 +1569,7 @@ struct
                      (* Can join while staying in limit, so do join. *)
                      let
                        val newRightStringsHd = leftStringsHd ^ rightStringsHd
+                       val _ = println "1572"
                        val newRightLinesHd =
                          Vector.tabulate
                            ( Vector.length leftLinesHd
@@ -1622,6 +1637,7 @@ struct
                     in
                       if midpoint >= 0 then
                         let
+                       val _ = println "1640"
                           val slice = VectorSlice.slice
                             (leftLinesHd, 0, SOME (midpoint + 1))
                         in
@@ -1665,8 +1681,9 @@ struct
                     in
                       if midpoint >= 0 then
                         let
+                          val _ = println "1684"
                           val slice = VectorSlice.slice
-                            (leftLinesHd, 0, SOME (midpoint + 1))
+                            (leftLinesHd, 0, SOME (midpoint))
                         in
                           VectorSlice.vector slice
                         end
@@ -1677,6 +1694,7 @@ struct
                   val sub2Lines =
                     let
                       val midpoint = forwardBinSearch (sub2Start, leftLinesHd)
+                      val _ = println "1697"
                     in
                       if midpoint < Vector.length leftLinesHd then
                         Vector.tabulate
@@ -1712,6 +1730,7 @@ struct
                   val lines =
                     let
                       val lineStart = forwardBinSearch (strStart, leftLinesHd)
+                      val _ = println "1733"
                     in
                       if lineStart < Vector.length leftLinesHd then
                         Vector.tabulate
@@ -1753,6 +1772,7 @@ struct
                      (* Can join while staying in limit. *)
                      let
                        val newRightStringsHd = leftStringsHd ^ rightStringsHd
+                      val _ = println "1776"
                        val newRightLinesHd =
                          Vector.tabulate
                            ( Vector.length leftLinesHd
