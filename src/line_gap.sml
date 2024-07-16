@@ -170,7 +170,7 @@ struct
           val curVal = Vector.sub (lines, idx)
         in
           if curVal > findNum then idx
-          else forwardLinearSearch (findNum, idx, lines)
+          else forwardLinearSearch (findNum, idx + 1, lines)
         end
 
     fun helpBinSearch (findNum, lines, low, high) =
@@ -983,6 +983,7 @@ struct
   in
     fun insert (idx, newString, buffer: t) =
       let
+        val _ = print "inserting...\n"
         val newLines = countLineBreaks newString
       in
         ins
@@ -1018,6 +1019,7 @@ struct
         (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
           let
             val nextIdx = moveIdx + String.size rightStringsHd
+            val _ = println "1021"
           in
             if nextIdx < finish then
               (* Keep moving right. *)
@@ -1110,6 +1112,7 @@ struct
         (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
           let
             val nextIdx = curIdx + String.size rightStringsHd
+            val _ = println "1113"
           in
             if nextIdx < start then
               (* Keep moving right. 
@@ -1510,6 +1513,7 @@ struct
           let
             val prevIdx = curIdx - String.size leftStringsHd
             val prevLine = curLine - Vector.length leftLinesHd
+            val _ = println "1513"
           in
             if start < prevIdx then
               (* Continue deleting leftward. *)
@@ -1597,6 +1601,7 @@ struct
           , rightStrings
           , rightLines
           )
+        val _ = println "1600"
       in
         deleteLeftFromHere
           ( start
@@ -1622,6 +1627,7 @@ struct
       case (leftStrings, leftLines) of
         (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
           let
+            val _ = println "1625"
             val prevIdx = curIdx - String.size leftStringsHd
           in
             if prevIdx > finish then
@@ -1782,19 +1788,7 @@ struct
                       end
                     else
                       leftLinesHd
-
-                  val realsub1lines = countLineBreaks sub1
-                  val _ =
-                    if realsub1lines = sub1Lines then
-                      ()
-                    else
-                      let
-                        val _ = println "realsub1lines error"
-                        val _ = checkLineBreaks (sub1Lines, realsub1lines)
-                        val _ = println "after realsub1lines error"
-                      in
-                        ()
-                      end
+                  val _ = println "1791; base case"
 
                   val sub2Lines =
                     let
@@ -1809,18 +1803,14 @@ struct
                         Vector.tabulate
                           ( Vector.length leftLinesHd - midpoint
                           , fn idx =>
-                              Vector.sub (leftLinesHd, idx + (midpoint))
+                              Vector.sub (leftLinesHd, idx + midpoint)
                               - sub2Start
                           )
                       else
                         Vector.fromList []
                     end
 
-                  val realsub2lines = countLineBreaks sub2
-                  val _ =
-                    if realsub2lines = sub2Lines then ()
-                    else println "realsub2lines error"
-
+                  val _ = println "1829; base case"
                 in
                   { idx = prevIdx + String.size sub1
                   , line =
@@ -1914,15 +1904,19 @@ struct
                      end
                    else
                      (* Cannot join while staying in limit. *)
-                     deleteLeftFromHere
-                       ( start
-                       , prevIdx
-                       , curLine - Vector.length leftLinesHd
-                       , leftStringsTl
-                       , leftLinesTl
-                       , leftStringsHd :: rightStrings
-                       , leftLinesHd :: rightLines
-                       )
+                     let
+                       val _ = print "1922"
+                     in
+                       deleteLeftFromHere
+                         ( start
+                         , prevIdx
+                         , curLine - Vector.length leftLinesHd
+                         , leftStringsTl
+                         , leftLinesTl
+                         , leftStringsHd :: rightStrings
+                         , leftLinesHd :: rightLines
+                         )
+                     end
                | (_, _) =>
                    (* Left strings and lines are empty, so just return. *)
                    { idx = 0
@@ -1954,63 +1948,83 @@ struct
       , rightLines
       ) =
       if start > curIdx then
-        moveRightAndDelete
-          ( start
-          , finish
-          , curIdx
-          , curLine
-          , leftStrings
-          , leftLines
-          , rightStrings
-          , rightLines
-          )
+        let
+          val _ = println "1963"
+        in
+          moveRightAndDelete
+            ( start
+            , finish
+            , curIdx
+            , curLine
+            , leftStrings
+            , leftLines
+            , rightStrings
+            , rightLines
+            )
+        end
       else if start < curIdx then
         if finish <= curIdx then
-          moveLeftAndDelete
-            ( start
-            , finish
-            , curIdx
-            , curLine
-            , leftStrings
-            , leftLines
-            , rightStrings
-            , rightLines
-            )
+          let
+            val _ = println "1976"
+          in
+            moveLeftAndDelete
+              ( start
+              , finish
+              , curIdx
+              , curLine
+              , leftStrings
+              , leftLines
+              , rightStrings
+              , rightLines
+              )
+          end
         else
-          deleteFromLetAndRight
-            ( start
-            , finish
-            , curIdx
+          let
+            val _ = println "1988"
+          in
+            deleteFromLetAndRight
+              ( start
+              , finish
+              , curIdx
+              , curLine
+              , leftStrings
+              , leftLines
+              , rightStrings
+              , rightLines
+              )
+          end
+      else
+        let
+          val _ = println "2000"
+        in
+          deleteRightFromHere
+            ( curIdx
             , curLine
+            , curIdx
+            , finish
             , leftStrings
             , leftLines
             , rightStrings
             , rightLines
             )
-      else
-        deleteRightFromHere
-          ( curIdx
-          , curLine
-          , curIdx
-          , finish
-          , leftStrings
-          , leftLines
-          , rightStrings
-          , rightLines
-          )
+        end
   in
     fun delete (start, length, buffer: t) =
       if length > 0 then
-        del
-          ( start
-          , start + length
-          , #idx buffer
-          , #line buffer
-          , #leftStrings buffer
-          , #leftLines buffer
-          , #rightStrings buffer
-          , #rightLines buffer
-          )
+        let
+          val _ = println "deleting..."
+        in
+          del
+            ( start
+            , start + length
+            , #idx buffer
+            , #line buffer
+            , #leftStrings buffer
+            , #leftLines buffer
+            , #rightStrings buffer
+            , #rightLines buffer
+            )
+        end
       else
         buffer
   end
