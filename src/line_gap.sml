@@ -1070,6 +1070,7 @@ struct
                     end
                   else
                     rightLinesHd (* empty vector *)
+                val _ = println "1073"
               in
                 { idx = origIdx
                 , line = origLine
@@ -1081,22 +1082,24 @@ struct
               end
             else
               (* Delete this node fully, but delete no further. *)
+              let val _ = println "1085" in
               { idx = origIdx
               , line = origLine
               , leftStrings = leftStrings
               , leftLines = leftLines
               , rightStrings = rightStringsTl
               , rightLines = rightLinesTl
-              }
+              } end
           end
       | (_, _) =>
+          let val _ = println "1095" in
           { idx = 0
           , line = 0
           , leftStrings = []
           , leftLines = []
           , rightStrings = rightStrings
           , rightLines = rightLines
-          }
+          } end
 
     fun moveRightAndDelete
       ( start
@@ -1149,10 +1152,8 @@ struct
                            )
                        val newLeftStrings = newLeftStringsHd :: leftStringsTl
                        val newLeftLines = newLeftLinesHd :: leftLinesTl
+                       val _ = println "1093"
                      in
-                       let
-                         val _ = println "1093"
-                       in
                          moveRightAndDelete
                            ( start
                            , finish
@@ -1163,7 +1164,6 @@ struct
                            , rightStringsTl
                            , rightLinesTl
                            )
-                       end
                      end
                    else
                      (* Can't join heads while staying in limit, so just cons. *)
@@ -1261,6 +1261,7 @@ struct
                        else
                          (* Can't join new string with left head
                          * while staying in limit, so just cons. *)
+                         let val _ = println "1264" in
                          deleteRightFromHere
                            ( nextIdx
                            , nextLine
@@ -1270,8 +1271,9 @@ struct
                            , newLines :: leftLines
                            , rightStringsTl
                            , rightLinesTl
-                           )
+                           ) end
                    | (_, _) =>
+                       let val _ = println "1276" in
                        deleteRightFromHere
                          ( nextIdx
                          , nextLine
@@ -1281,7 +1283,7 @@ struct
                          , newLines :: leftLines
                          , rightStringsTl
                          , rightLinesTl
-                         ))
+                         ) end)
                 end
               else if nextIdx > finish then
                 (* Base case: delete from the middle part of this string. *)
@@ -1315,7 +1317,7 @@ struct
                         val _ = println "1242"
                       in
                         Vector.tabulate
-                          ( Vector.length rightLinesHd - Vector.length sub1Lines
+                          ( Vector.length rightLinesHd - sub2LineStart
                           , fn idx =>
                               Vector.sub (rightLinesHd, idx + sub2LineStart)
                               - (String.size rightStringsHd - String.size sub2)
@@ -1323,134 +1325,15 @@ struct
                       end
                     else
                       Vector.fromList []
+                  val _ = println "1326"
                 in
-                  (case (leftStrings, leftLines) of
-                     ( leftStringsHd :: leftStringsTl
-                     , leftLinesHd :: leftLinesTl
-                     ) =>
-                       let
-                         val isLeftInLimit =
-                           isInLimit
-                             (leftStringsHd, sub1, leftLinesHd, sub1Lines)
-                         val isRightInLimit =
-                           isInLimit
-                             (rightStringsHd, sub2, rightLinesHd, sub2Lines)
-                       in
-                         if isLeftInLimit andalso isRightInLimit then
-                           let
-                             val newLeftStringsHd = leftStringsHd ^ sub1
-                             val _ = println "1267"
-                             val newLeftLinesHd =
-                               Vector.tabulate
-                                 ( Vector.length leftLinesHd
-                                   + Vector.length sub1Lines
-                                 , fn idx =>
-                                     if idx < Vector.length leftLinesHd then
-                                       Vector.sub (leftLinesHd, idx)
-                                     else
-                                       Vector.sub
-                                         ( sub1Lines
-                                         , idx - Vector.length leftLinesHd
-                                         ) + String.size leftStringsHd
-                                 )
-
-                             val newRightStringsHd = sub2 ^ rightStringsHd
-                             val _ = println "1283"
-                             val newRightLinesHd =
-                               Vector.tabulate
-                                 ( Vector.length rightLinesHd
-                                   + Vector.length sub2Lines
-                                 , fn idx =>
-                                     if idx < Vector.length sub2Lines then
-                                       Vector.sub (sub2Lines, idx)
-                                     else
-                                       Vector.sub
-                                         ( rightLinesHd
-                                         , idx - Vector.length sub2Lines
-                                         ) + String.size sub2
-                                 )
-                           in
-                             { idx = curIdx + String.size sub1
-                             , line = curLine + Vector.length sub1Lines
-
-                             , leftStrings = newLeftStringsHd :: leftStringsTl
-                             , leftLines = newLeftLinesHd :: leftLinesTl
-                             , rightStrings =
-                                 newRightStringsHd :: rightStringsTl
-                             , rightLines = newRightLinesHd :: rightLinesTl
-                             }
-                           end
-                         else if isLeftInLimit then
-                           let
-                             val newLeftStringsHd = leftStringsHd ^ sub1
-                             val _ = println "1311"
-                             val newLeftLinesHd =
-                               Vector.tabulate
-                                 ( Vector.length leftLinesHd
-                                   + Vector.length sub1Lines
-                                 , fn idx =>
-                                     if idx < Vector.length leftLinesHd then
-                                       Vector.sub (leftLinesHd, idx)
-                                     else
-                                       Vector.sub
-                                         ( sub1Lines
-                                         , idx - Vector.length leftLinesHd
-                                         ) + String.size leftStringsHd
-                                 )
-                           in
-                             { idx = curIdx + String.size sub1
-                             , line = curLine + Vector.length sub1Lines
-                             , leftStrings = newLeftStringsHd :: leftStringsTl
-                             , leftLines = newLeftLinesHd :: leftLinesTl
-                             , rightStrings = sub2 :: rightStrings
-                             , rightLines = sub2Lines :: rightLines
-                             }
-                           end
-                         else if isRightInLimit then
-                           let
-                             val newRightStringsHd = sub2 ^ rightStringsHd
-                             val _ = println "1337"
-                             val newRightLinesHd =
-                               Vector.tabulate
-                                 ( Vector.length rightLinesHd
-                                   + Vector.length sub2Lines
-                                 , fn idx =>
-                                     if idx < Vector.length sub2Lines then
-                                       Vector.sub (sub2Lines, idx)
-                                     else
-                                       Vector.sub
-                                         ( rightLinesHd
-                                         , idx - Vector.length sub2Lines
-                                         ) + String.size sub2
-                                 )
-                           in
-                             { idx = curIdx + String.size sub1
-                             , line = curLine + Vector.length sub1Lines
-
-                             , leftStrings = sub1 :: leftStrings
-                             , leftLines = sub1Lines :: leftLines
-                             , rightStrings =
-                                 newRightStringsHd :: rightStringsTl
-                             , rightLines = newRightLinesHd :: rightLinesTl
-                             }
-                           end
-                         else
-                           { idx = curIdx + String.size sub1
-                           , line = curLine + Vector.length sub1Lines
-                           , leftStrings = sub1 :: leftStrings
-                           , leftLines = sub1Lines :: leftLines
-                           , rightStrings = sub2 :: rightStrings
-                           , rightLines = sub2Lines :: rightLines
-                           }
-                       end
-                   | (_, _) =>
-                       { idx = curIdx + String.size sub1
+                       { idx = curIdx + sub1Length
                        , line = curLine + Vector.length sub1Lines
-                       , leftStrings = sub1 :: leftStrings
-                       , leftLines = sub1Lines :: leftLines
-                       , rightStrings = sub2 :: rightStrings
-                       , rightLines = sub2Lines :: rightLines
-                       })
+                       , leftStrings =  sub1 :: leftStrings
+                       , leftLines =  sub1Lines :: leftLines
+                       , rightStrings = sub2 :: rightStringsTl
+                       , rightLines =  sub2Lines :: rightLinesTl
+                       }
                 end
               else
                 (* nextIdx = finish 
@@ -1470,6 +1353,7 @@ struct
                       end
                     else
                       Vector.fromList []
+                  val _ = println "1340"
                 in
                   { idx = curIdx + strLength
                   , line = curLine + Vector.length newLeftLines
@@ -1486,6 +1370,7 @@ struct
                * and it may extend beyond the current head. 
                * So pass the rightStringsTl and rightLinesTl to a function that
                * will delete rightwards if it needs to, or else terminates. *)
+               let val _ = println "1373" in
               deleteRightFromHere
                 ( curIdx
                 , curLine
@@ -1495,16 +1380,17 @@ struct
                 , leftLines
                 , rightStringsTl
                 , rightLinesTl
-                )
+                ) end
           end
       | (_, _) =>
+          let val _ = println "1386" in
           { idx = curIdx
           , line = curLine
           , leftStrings = leftStrings
           , leftLines = leftLines
           , rightStrings = rightStrings
           , rightLines = rightLines
-          }
+          } end
 
     fun deleteLeftFromHere
       (start, curIdx, curLine, leftStrings, leftLines, rightStrings, rightLines) =
@@ -1544,6 +1430,7 @@ struct
                   in
                     VectorSlice.vector slice
                   end
+                val _ = println "1433"
               in
                 { idx = prevIdx + String.size newStr
                 , line = prevLine + Vector.length newLines
@@ -1556,22 +1443,24 @@ struct
             else
               (* start = prevIdx 
                * Base case: Remove leftStrings/LinesHd without removing any further. *)
+               let val _ = println "1446" in
               { idx = prevIdx
               , line = prevLine
               , leftStrings = leftStringsTl
               , leftLines = leftLinesTl
               , rightStrings = rightStrings
               , rightLines = rightLines
-              }
+              } end
           end
       | (_, _) =>
+          let val _ = println "1456" in
           { idx = curIdx
           , line = curLine
           , leftStrings = leftStrings
           , leftLines = leftLines
           , rightStrings = rightStrings
           , rightLines = rightLines
-          }
+          } end
 
     fun deleteFromLetAndRight
       ( start
@@ -1702,13 +1591,14 @@ struct
                | (_, _) =>
                    (* Base case: reached empty list while trying to move leftwards.
                     * Cannot do anything so just return. *)
+                    let val _ = println "1594" in
                    { idx = 0
                    , line = 0
                    , leftStrings = leftStrings
                    , leftLines = leftLines
                    , rightStrings = rightStrings
                    , rightLines = rightLines
-                   })
+                   } end)
             else if prevIdx < finish then
               if prevIdx > start then
                 (* Delete from start point of this string,
@@ -1739,6 +1629,7 @@ struct
                   val newRightStrings = newString :: rightStrings
                   val newRightLines = newLines :: rightLines
                   val prevLine = curLine - Vector.length leftLinesHd
+                  val _ = println "1632"
                 in
                   deleteLeftFromHere
                     ( start
@@ -1847,6 +1738,7 @@ struct
                       else
                         Vector.fromList []
                     end
+                  val _ = println "1741"
                 in
                   { idx = prevIdx
                   , line =
@@ -1877,7 +1769,6 @@ struct
                      (* Can join while staying in limit. *)
                      let
                        val newRightStringsHd = leftStringsHd ^ rightStringsHd
-                       val _ = println "1776"
                        val newRightLinesHd =
                          Vector.tabulate
                            ( Vector.length leftLinesHd
@@ -1891,6 +1782,7 @@ struct
                                    , idx - Vector.length leftLinesHd
                                    ) + String.size leftStringsHd
                            )
+                       val _ = println "1776"
                      in
                        deleteLeftFromHere
                          ( start
@@ -1919,23 +1811,25 @@ struct
                      end
                | (_, _) =>
                    (* Left strings and lines are empty, so just return. *)
+                   let val _ = println "1814" in
                    { idx = 0
                    , line = 0
                    , leftStrings = []
                    , leftLines = []
                    , rightStrings = rightStrings
                    , rightLines = rightLines
-                   })
+                   } end)
           end
       | (_, _) =>
           (* Can't move further leftward so just return. *)
+          let val _ = println "1825" in
           { idx = 0
           , line = 0
           , leftStrings = []
           , leftLines = []
           , rightStrings = rightStrings
           , rightLines = rightLines
-          }
+          } end
 
     fun del
       ( start
