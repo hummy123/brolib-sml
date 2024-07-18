@@ -107,38 +107,37 @@ struct
 
   fun calcIndexList (accIdx, lst) =
     case lst of
-        [] => accIdx
-      | hd::tl =>
-          calcIndexList (String.size hd + accIdx, tl)
+      [] => accIdx
+    | hd :: tl => calcIndexList (String.size hd + accIdx, tl)
 
   fun calcIndexStart lst = calcIndexList (0, lst)
 
   fun verifyIndex (buffer: t) =
-  let
-    val bufferIdx = #idx buffer
-    val correctIdx = calcIndexStart (#leftStrings buffer)
+    let
+      val bufferIdx = #idx buffer
+      val correctIdx = calcIndexStart (#leftStrings buffer)
 
-    val _ = 
-      if bufferIdx = correctIdx then
-        print "idx is correct\n"
-      else
-        let 
-          val msg = String.concat [
-          "idx is incorrect;",
-          "bufferIdx: ",
-          Int.toString bufferIdx,
-          "; correctIdx: ",
-          Int.toString correctIdx,
-          "\n"
-        ]
-          val _ = print msg
-          val _ = raise Size
-        in
-          print msg
-        end
-  in
-    ()
-  end
+      val _ =
+        if bufferIdx = correctIdx then
+          print "idx is correct\n"
+        else
+          let
+            val msg = String.concat
+              [ "idx is incorrect;"
+              , "bufferIdx: "
+              , Int.toString bufferIdx
+              , "; correctIdx: "
+              , Int.toString correctIdx
+              , "\n"
+              ]
+            val _ = print msg
+            val _ = raise Size
+          in
+            print msg
+          end
+    in
+      ()
+    end
 
 
   local
@@ -1118,24 +1117,30 @@ struct
               end
             else
               (* Delete this node fully, but delete no further. *)
-              let val _ = println "1085" in
-              { idx = origIdx
-              , line = origLine
-              , leftStrings = leftStrings
-              , leftLines = leftLines
-              , rightStrings = rightStringsTl
-              , rightLines = rightLinesTl
-              } end
+              let
+                val _ = println "1085"
+              in
+                { idx = origIdx
+                , line = origLine
+                , leftStrings = leftStrings
+                , leftLines = leftLines
+                , rightStrings = rightStringsTl
+                , rightLines = rightLinesTl
+                }
+              end
           end
       | (_, _) =>
-          let val _ = println "1095" in
-          { idx = 0
-          , line = 0
-          , leftStrings = []
-          , leftLines = []
-          , rightStrings = rightStrings
-          , rightLines = rightLines
-          } end
+          let
+            val _ = println "1095"
+          in
+            { idx = 0
+            , line = 0
+            , leftStrings = []
+            , leftLines = []
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
+          end
 
     fun moveRightAndDelete
       ( start
@@ -1190,16 +1195,16 @@ struct
                        val newLeftLines = newLeftLinesHd :: leftLinesTl
                        val _ = println "1093"
                      in
-                         moveRightAndDelete
-                           ( start
-                           , finish
-                           , nextIdx
-                           , curLine + Vector.length rightLinesHd
-                           , newLeftStrings
-                           , newLeftLines
-                           , rightStringsTl
-                           , rightLinesTl
-                           )
+                       moveRightAndDelete
+                         ( start
+                         , finish
+                         , nextIdx
+                         , curLine + Vector.length rightLinesHd
+                         , newLeftStrings
+                         , newLeftLines
+                         , rightStringsTl
+                         , rightLinesTl
+                         )
                      end
                    else
                      (* Can't join heads while staying in limit, so just cons. *)
@@ -1297,7 +1302,24 @@ struct
                        else
                          (* Can't join new string with left head
                          * while staying in limit, so just cons. *)
-                         let val _ = println "1264" in
+                         let
+                           val _ = println "1264"
+                         in
+                           deleteRightFromHere
+                             ( nextIdx
+                             , nextLine
+                             , nextIdx
+                             , finish
+                             , newString :: leftStrings
+                             , newLines :: leftLines
+                             , rightStringsTl
+                             , rightLinesTl
+                             )
+                         end
+                   | (_, _) =>
+                       let
+                         val _ = println "1276"
+                       in
                          deleteRightFromHere
                            ( nextIdx
                            , nextLine
@@ -1307,19 +1329,8 @@ struct
                            , newLines :: leftLines
                            , rightStringsTl
                            , rightLinesTl
-                           ) end
-                   | (_, _) =>
-                       let val _ = println "1276" in
-                       deleteRightFromHere
-                         ( nextIdx
-                         , nextLine
-                         , nextIdx
-                         , finish
-                         , newString :: leftStrings
-                         , newLines :: leftLines
-                         , rightStringsTl
-                         , rightLinesTl
-                         ) end)
+                           )
+                       end)
                 end
               else if nextIdx > finish then
                 (* Base case: delete from the middle part of this string. *)
@@ -1363,13 +1374,13 @@ struct
                       Vector.fromList []
                   val _ = println "1326"
                 in
-                       { idx = curIdx + sub1Length
-                       , line = curLine + Vector.length sub1Lines
-                       , leftStrings =  sub1 :: leftStrings
-                       , leftLines =  sub1Lines :: leftLines
-                       , rightStrings = sub2 :: rightStringsTl
-                       , rightLines =  sub2Lines :: rightLinesTl
-                       }
+                  { idx = curIdx + sub1Length
+                  , line = curLine + Vector.length sub1Lines
+                  , leftStrings = sub1 :: leftStrings
+                  , leftLines = sub1Lines :: leftLines
+                  , rightStrings = sub2 :: rightStringsTl
+                  , rightLines = sub2Lines :: rightLinesTl
+                  }
                 end
               else
                 (* nextIdx = finish 
@@ -1406,27 +1417,33 @@ struct
                * and it may extend beyond the current head. 
                * So pass the rightStringsTl and rightLinesTl to a function that
                * will delete rightwards if it needs to, or else terminates. *)
-               let val _ = println "1373" in
-              deleteRightFromHere
-                ( curIdx
-                , curLine
-                , curIdx
-                , finish
-                , leftStrings
-                , leftLines
-                , rightStringsTl
-                , rightLinesTl
-                ) end
+              let
+                val _ = println "1373"
+              in
+                deleteRightFromHere
+                  ( curIdx
+                  , curLine
+                  , curIdx
+                  , finish
+                  , leftStrings
+                  , leftLines
+                  , rightStringsTl
+                  , rightLinesTl
+                  )
+              end
           end
       | (_, _) =>
-          let val _ = println "1386" in
-          { idx = curIdx
-          , line = curLine
-          , leftStrings = leftStrings
-          , leftLines = leftLines
-          , rightStrings = rightStrings
-          , rightLines = rightLines
-          } end
+          let
+            val _ = println "1386"
+          in
+            { idx = curIdx
+            , line = curLine
+            , leftStrings = leftStrings
+            , leftLines = leftLines
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
+          end
 
     fun deleteLeftFromHere
       (start, curIdx, curLine, leftStrings, leftLines, rightStrings, rightLines) =
@@ -1479,24 +1496,30 @@ struct
             else
               (* start = prevIdx 
                * Base case: Remove leftStrings/LinesHd without removing any further. *)
-               let val _ = println "1446" in
-              { idx = prevIdx
-              , line = prevLine
-              , leftStrings = leftStringsTl
-              , leftLines = leftLinesTl
-              , rightStrings = rightStrings
-              , rightLines = rightLines
-              } end
+              let
+                val _ = println "1446"
+              in
+                { idx = prevIdx
+                , line = prevLine
+                , leftStrings = leftStringsTl
+                , leftLines = leftLinesTl
+                , rightStrings = rightStrings
+                , rightLines = rightLines
+                }
+              end
           end
       | (_, _) =>
-          let val _ = println "1456" in
-          { idx = curIdx
-          , line = curLine
-          , leftStrings = leftStrings
-          , leftLines = leftLines
-          , rightStrings = rightStrings
-          , rightLines = rightLines
-          } end
+          let
+            val _ = println "1456"
+          in
+            { idx = curIdx
+            , line = curLine
+            , leftStrings = leftStrings
+            , leftLines = leftLines
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
+          end
 
     fun deleteFromLetAndRight
       ( start
@@ -1627,14 +1650,17 @@ struct
                | (_, _) =>
                    (* Base case: reached empty list while trying to move leftwards.
                     * Cannot do anything so just return. *)
-                    let val _ = println "1594" in
-                   { idx = 0
-                   , line = 0
-                   , leftStrings = leftStrings
-                   , leftLines = leftLines
-                   , rightStrings = rightStrings
-                   , rightLines = rightLines
-                   } end)
+                   let
+                     val _ = println "1594"
+                   in
+                     { idx = 0
+                     , line = 0
+                     , leftStrings = leftStrings
+                     , leftLines = leftLines
+                     , rightStrings = rightStrings
+                     , rightLines = rightLines
+                     }
+                   end)
             else if prevIdx < finish then
               if prevIdx > start then
                 (* Delete from start point of this string,
@@ -1776,7 +1802,7 @@ struct
                     end
                   val _ = println "1741"
                 in
-                  { idx = prevIdx
+                  { idx = prevIdx + String.size str
                   , line =
                       (curLine - Vector.length leftLinesHd) + String.size str
                   , leftStrings = str :: leftStringsTl
@@ -1847,25 +1873,31 @@ struct
                      end
                | (_, _) =>
                    (* Left strings and lines are empty, so just return. *)
-                   let val _ = println "1814" in
-                   { idx = 0
-                   , line = 0
-                   , leftStrings = []
-                   , leftLines = []
-                   , rightStrings = rightStrings
-                   , rightLines = rightLines
-                   } end)
+                   let
+                     val _ = println "1814"
+                   in
+                     { idx = 0
+                     , line = 0
+                     , leftStrings = []
+                     , leftLines = []
+                     , rightStrings = rightStrings
+                     , rightLines = rightLines
+                     }
+                   end)
           end
       | (_, _) =>
           (* Can't move further leftward so just return. *)
-          let val _ = println "1825" in
-          { idx = 0
-          , line = 0
-          , leftStrings = []
-          , leftLines = []
-          , rightStrings = rightStrings
-          , rightLines = rightLines
-          } end
+          let
+            val _ = println "1825"
+          in
+            { idx = 0
+            , line = 0
+            , leftStrings = []
+            , leftLines = []
+            , rightStrings = rightStrings
+            , rightLines = rightLines
+            }
+          end
 
     fun del
       ( start
