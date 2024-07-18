@@ -91,6 +91,7 @@ struct
             end
         end
     | (_, _) => print "verified lines; no problems\n"
+
   fun verifyLines (buffer: t) =
     let
       val (strings, lines) =
@@ -103,6 +104,41 @@ struct
     in
       verifyLineList (strings, lines)
     end
+
+  fun calcIndexList (accIdx, lst) =
+    case lst of
+        [] => accIdx
+      | hd::tl =>
+          calcIndexList (String.size hd + accIdx, tl)
+
+  fun calcIndexStart lst = calcIndexList (0, lst)
+
+  fun verifyIndex (buffer: t) =
+  let
+    val bufferIdx = #idx buffer
+    val correctIdx = calcIndexStart (#leftStrings buffer)
+
+    val _ = 
+      if bufferIdx = correctIdx then
+        print "idx is correct\n"
+      else
+        let 
+          val msg = String.concat [
+          "idx is incorrect;",
+          "bufferIdx: ",
+          Int.toString bufferIdx,
+          "; correctIdx: ",
+          Int.toString correctIdx,
+          "\n"
+        ]
+          val _ = print msg
+          val _ = raise Size
+        in
+          print msg
+        end
+  in
+    ()
+  end
 
 
   local
@@ -1703,7 +1739,7 @@ struct
 
                   val _ = println "1829; base case"
                 in
-                  { idx = prevIdx + String.size sub1
+                  { idx = prevIdx + sub1Length
                   , line =
                       (curLine - Vector.length leftLinesHd)
                       + Vector.length sub1Lines

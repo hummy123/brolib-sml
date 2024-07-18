@@ -19,6 +19,8 @@ struct
            val gapBuffer =
              if strSize > 0 then LineGap.insert (pos, insStr, gapBuffer)
              else gapBuffer
+
+          val _ = LineGap.verifyIndex gapBuffer
           val _ = LineGap.verifyLines gapBuffer
 
            val ropeString = TinyRope.toString rope
