@@ -199,10 +199,14 @@ struct
   local
     fun forwardLinearSearch (findNum, idx, lines) =
       if idx = Vector.length lines then
-        idx
+        let val _ = print "203\n"
+        in idx
+        end
       else
         let
+          val _ = print "before curval\n"
           val curVal = Vector.sub (lines, idx)
+          val _ = print (Int.toString curVal ^ "\n")
         in
           if curVal > findNum then idx
           else forwardLinearSearch (findNum, idx + 1, lines)
@@ -215,6 +219,7 @@ struct
         if high >= low then
           let
             val midVal = Vector.sub (lines, mid)
+            val _ = print "218\n"
           in
             if midVal = findNum then
               mid
@@ -224,7 +229,9 @@ struct
               helpBinSearch (findNum, lines, low, mid - 1)
           end
         else
-          forwardLinearSearch (findNum, mid, lines)
+          let val _ = print "229\n"
+          in if mid >= 0 then forwardLinearSearch (findNum, mid, lines) else 0
+          end
       end
   in
     fun forwardBinSearch (findNum, lines) =
@@ -1090,16 +1097,14 @@ struct
                       val _ = println "996"
                       val lineDeleteEnd = binSearch
                         (String.size newStr - 1, rightLinesHd)
-                      val lineDeleteStart = Vector.length rightLinesHd - lineDeleteEnd
+                      val lineDeleteStart =
+                        Vector.length rightLinesHd - lineDeleteEnd
                       val lineDeleteLength = lineDeleteEnd - lineDeleteStart
                     in
                       if lineDeleteEnd >= 0 then
-                        Vector.tabulate
-                          ( lineDeleteLength + 1
-                          , fn idx =>
-                              Vector.sub (rightLinesHd, idx + lineDeleteStart)
-                              - newStrStart
-                          )
+                        Vector.tabulate (lineDeleteLength + 1, fn idx =>
+                          Vector.sub (rightLinesHd, idx + lineDeleteStart)
+                          - newStrStart)
                       else
                         (* Subtract by difference in length, which is same as
                          * newStrStart. *)
@@ -1342,32 +1347,35 @@ struct
                   val sub1LineEnd = binSearch
                     (String.size sub1 - 1, rightLinesHd)
                   val sub1Lines =
-                    if sub1LineEnd < 0 orelse Vector.length rightLinesHd = 0
-                    then Vector.fromList []
+                    if sub1LineEnd < 0 orelse Vector.length rightLinesHd = 0 then
+                      Vector.fromList []
                     else
                       let
                         val _ = println "1224"
-                        val _ =  println ("vlen = " ^ Int.toString
-                        (Vector.length rightLinesHd))
-                        val _ = println ("sub1LineEnd = " ^ Int.toString sub1LineEnd)
-                        val slice =   VectorSlice.slice
+                        val _ = println
+                          ("vlen = " ^ Int.toString (Vector.length rightLinesHd))
+                        val _ = println
+                          ("sub1LineEnd = " ^ Int.toString sub1LineEnd)
+                        val slice = VectorSlice.slice
                           (rightLinesHd, 0, SOME (sub1LineEnd + 1))
                       in
                         VectorSlice.vector slice
                       end
 
-                  val _ =  println "1356"
+                  val _ = println "1356"
                   val sub2Start = finish - curIdx
                   val sub2 = String.substring
                     ( rightStringsHd
                     , sub2Start
                     , String.size rightStringsHd - sub2Start
                     )
+                  val _ = println "1366"
                   val sub2LineStart = forwardBinSearch (sub2Start, rightLinesHd)
+                  val _ = println "1368"
                   val sub2Lines =
                     if sub2LineStart < Vector.length rightLinesHd then
                       let
-                        val _ = println "1242"
+                        val _ = println "1370"
                       in
                         Vector.tabulate
                           ( Vector.length rightLinesHd - sub2LineStart
@@ -1396,8 +1404,8 @@ struct
                   val str = String.substring (rightStringsHd, 0, strLength)
                   val midpoint = binSearch (String.size str - 1, rightLinesHd)
                   val newLeftLines =
-                    if midpoint < 0 orelse Vector.length rightLinesHd = 0
-                    then Vector.fromList []
+                    if midpoint < 0 orelse Vector.length rightLinesHd = 0 then
+                      Vector.fromList []
                     else
                       let
                         val _ = println "1390"
