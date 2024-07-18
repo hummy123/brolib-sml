@@ -1090,12 +1090,14 @@ struct
                       val _ = println "996"
                       val lineDeleteEnd = binSearch
                         (String.size newStr - 1, rightLinesHd)
+                      val lineDeleteStart = Vector.length rightLinesHd - lineDeleteEnd
+                      val lineDeleteLength = lineDeleteEnd - lineDeleteStart
                     in
                       if lineDeleteEnd >= 0 then
                         Vector.tabulate
-                          ( Vector.length rightLinesHd - lineDeleteEnd
+                          ( lineDeleteLength + 1
                           , fn idx =>
-                              Vector.sub (rightLinesHd, idx + lineDeleteEnd + 1)
+                              Vector.sub (rightLinesHd, idx + lineDeleteStart)
                               - newStrStart
                           )
                       else
