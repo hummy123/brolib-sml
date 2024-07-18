@@ -1342,17 +1342,21 @@ struct
                   val sub1LineEnd = binSearch
                     (String.size sub1 - 1, rightLinesHd)
                   val sub1Lines =
-                    if sub1LineEnd >= 0 then
+                    if sub1LineEnd < 0 orelse Vector.length rightLinesHd = 0
+                    then Vector.fromList []
+                    else
                       let
                         val _ = println "1224"
-                        val slice = VectorSlice.slice
+                        val _ =  println ("vlen = " ^ Int.toString
+                        (Vector.length rightLinesHd))
+                        val _ = println ("sub1LineEnd = " ^ Int.toString sub1LineEnd)
+                        val slice =   VectorSlice.slice
                           (rightLinesHd, 0, SOME (sub1LineEnd + 1))
                       in
                         VectorSlice.vector slice
                       end
-                    else
-                      Vector.fromList []
 
+                  val _ =  println "1356"
                   val sub2Start = finish - curIdx
                   val sub2 = String.substring
                     ( rightStringsHd
