@@ -1396,16 +1396,17 @@ struct
                   val str = String.substring (rightStringsHd, 0, strLength)
                   val midpoint = binSearch (String.size str - 1, rightLinesHd)
                   val newLeftLines =
-                    if midpoint >= 0 then
+                    if midpoint < 0 orelse Vector.length rightLinesHd = 0
+                    then Vector.fromList []
+                    else
                       let
                         val _ = println "1390"
+                        val _ = println ("midpoint = " ^ Int.toString midpoint)
                         val slice = VectorSlice.slice
                           (rightLinesHd, 0, SOME (midpoint + 1))
                       in
                         VectorSlice.vector slice
                       end
-                    else
-                      Vector.fromList []
                   val _ = println "1340"
                 in
                   { idx = curIdx + strLength
