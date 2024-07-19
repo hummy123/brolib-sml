@@ -1084,11 +1084,18 @@ struct
               let
                 (* Delete part of string. *)
                 val newStrStart = finish - moveIdx
+                val _ = println
+                  ("old len = " ^ Int.toString (String.size rightStringsHd))
+                val _ = println
+                  ("new len = "
+                   ^ Int.toString (String.size rightStringsHd - newStrStart))
                 val newStr = String.substring
                   ( rightStringsHd
                   , newStrStart
                   , String.size rightStringsHd - newStrStart
                   )
+                val _ = println
+                  ("actual len = " ^ Int.toString (String.size newStr))
 
                 (* Delete from line vector if we need to. *)
                 val newLines =
@@ -1436,14 +1443,15 @@ struct
                * will delete rightwards if it needs to, or else terminates. *)
               let
                 val _ = println "1373"
+                val _ = println ("1444 = " ^ Int.toString (finish - start))
               in
                 deleteRightFromHere
-                  ( curIdx
-                  , curLine
-                  , curIdx
+                  ( nextIdx
+                  , curLine + Vector.length rightLinesHd
+                  , nextIdx
                   , finish
-                  , leftStrings
-                  , leftLines
+                  , rightStringsHd :: leftStrings
+                  , rightLinesHd :: leftLines
                   , rightStringsTl
                   , rightLinesTl
                   )
@@ -1992,6 +2000,14 @@ struct
       if length > 0 then
         let
           val _ = println "deleting..."
+          val _ = println (String.concat
+            [ "length = "
+            , Int.toString length
+            , "| start = "
+            , Int.toString start
+            , "| start + length = "
+            , Int.toString (start + length)
+            ])
         in
           del
             ( start

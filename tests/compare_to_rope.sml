@@ -4,7 +4,7 @@ struct
     Vector.foldli
       (fn (idx, (pos, delNum, insStr), (rope, gapBuffer)) =>
          let
-           val _ = print ("idx: " ^ Int.toString idx ^ "\n")
+           val _ = print ("txn number: " ^ Int.toString idx ^ "\n")
            val oldRope = rope
            val strSize = String.size insStr
 
