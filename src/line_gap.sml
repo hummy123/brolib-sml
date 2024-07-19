@@ -1062,6 +1062,7 @@ struct
           let
             val nextIdx = moveIdx + String.size rightStringsHd
             val _ = println "1021"
+            val _ = println ("origIdx = " ^ Int.toString origIdx)
           in
             if nextIdx < finish then
               (* Keep moving right. *)
@@ -1259,6 +1260,8 @@ struct
                 (* Start deleting from the end of this string,
                  * and then continue deleting rightwards. *)
                 let
+                  val _ = println "1263"
+                  val _ = println ("1263 idx = " ^ Int.toString curIdx)
                   val length = start - curIdx
                   val newString = String.substring (rightStringsHd, 0, length)
 
@@ -1290,6 +1293,8 @@ struct
                          let
                            val newLeftStringsHd = leftStringsHd ^ newString
                            val _ = println "1163"
+                           val _ = println ("curIdx = " ^ Int.toString curIdx)
+                           val _ = println ("nextIdx = " ^ Int.toString nextIdx)
                            val newLeftLinesHd =
                              Vector.tabulate
                                ( Vector.length leftLinesHd
@@ -1304,8 +1309,13 @@ struct
                                        ) + String.size leftStringsHd
                                )
                          in
+                           (* moveIdx passed as arameter should be 
+                            * different from origIdx,
+                            * because moveIdx considers range to delete from
+                            * while origIdx considers index to return 
+                            * once buffer is done deleting. *)
                            deleteRightFromHere
-                             ( nextIdx
+                             ( curIdx + String.size newString
                              , nextLine
                              , nextIdx
                              , finish
@@ -2006,6 +2016,8 @@ struct
             , Int.toString start
             , "| start + length = "
             , Int.toString (start + length)
+            , "| bufferIdx = "
+            , Int.toString (#idx buffer)
             ])
         in
           del
