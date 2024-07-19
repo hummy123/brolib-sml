@@ -1268,7 +1268,9 @@ struct
                   val lineDeleteEnd = binSearch
                     (String.size newString - 1, rightLinesHd)
                   val newLines =
-                    if lineDeleteEnd >= 0 then
+                    if Vector.length rightLinesHd = 0 orelse lineDeleteEnd < 0 then
+                      Vector.fromList []
+                    else
                       let
                         val _ = println "1141"
                         val slice = VectorSlice.slice
@@ -1276,8 +1278,7 @@ struct
                       in
                         VectorSlice.vector slice
                       end
-                    else
-                      Vector.fromList []
+
                   val nextLine = curLine + Vector.length newLines
                 in
                   (* Try joining new string with left head if possible. *)
@@ -1332,8 +1333,8 @@ struct
                            val _ = println "1264"
                          in
                            deleteRightFromHere
-                             ( nextIdx
-                             , nextLine
+                             ( curIdx + String.size newString
+                             , curLine + Vector.length newLines
                              , nextIdx
                              , finish
                              , newString :: leftStrings
@@ -1718,15 +1719,18 @@ struct
                     )
                   val newLines =
                     let
-                      val midpoint = binSearch
-                        (String.size newString - 1, leftLinesHd)
+                      val midpoint = forwardBinSearch (stringStart, leftLinesHd)
                     in
                       if midpoint >= 0 then
                         let
                           val _ = println "1640"
                         in
-                          Vector.tabulate (midpoint, fn idx =>
-                            Vector.sub (leftLinesHd, idx + 1) - stringStart)
+                          Vector.tabulate
+                            ( Vector.length leftLinesHd - midpoint
+                            , fn idx =>
+                                Vector.sub (leftLinesHd, idx + midpoint)
+                                - stringStart
+                            )
                         end
                       else
                         Vector.fromList []
