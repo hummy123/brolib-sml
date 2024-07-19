@@ -1694,13 +1694,16 @@ struct
                    let
                      val _ = println "1594"
                    in
-                     { idx = 0
-                     , line = 0
-                     , leftStrings = leftStrings
-                     , leftLines = leftLines
-                     , rightStrings = rightStrings
-                     , rightLines = rightLines
-                     }
+                     moveLeftAndDelete
+                       ( start
+                       , finish
+                       , prevIdx
+                       , curLine - Vector.length leftLinesHd
+                       , leftStringsTl
+                       , leftLinesTl
+                       , [leftStringsHd]
+                       , [leftLinesHd]
+                       )
                    end)
             else if prevIdx < finish then
               if prevIdx > start then
