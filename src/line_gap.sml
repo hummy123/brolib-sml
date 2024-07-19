@@ -1509,15 +1509,21 @@ struct
               let
                 val length = start - prevIdx
                 val newStr = String.substring (leftStringsHd, 0, length)
-                val midpoint = binSearch (String.size newStr - 1, leftLinesHd)
                 val newLines =
-                  let
-                    val _ = println "1461"
-                    val slice = VectorSlice.slice
-                      (leftLinesHd, 0, SOME (midpoint + 1))
-                  in
-                    VectorSlice.vector slice
-                  end
+                  if Vector.length leftLinesHd > 0 then
+                    let
+                      val midpoint = binSearch
+                        (String.size newStr - 1, leftLinesHd)
+                      val _ = println "1461"
+                      val _ = println
+                        ("vlen = " ^ (Int.toString (Vector.length leftLinesHd)))
+                      val slice = VectorSlice.slice
+                        (leftLinesHd, 0, SOME (midpoint + 1))
+                    in
+                      VectorSlice.vector slice
+                    end
+                  else
+                    Vector.fromList []
                 val _ = println "1433"
               in
                 { idx = prevIdx + String.size newStr
@@ -1906,17 +1912,20 @@ struct
                          )
                      end
                | (_, _) =>
-                   (* Left strings and lines are empty, so just return. *)
+                   (* Right strings and lines are empty, so can't join. *)
                    let
                      val _ = println "1814"
                    in
-                     { idx = 0
-                     , line = 0
-                     , leftStrings = []
-                     , leftLines = []
-                     , rightStrings = rightStrings
-                     , rightLines = rightLines
-                     }
+                     deleteLeftFromHere
+                       ( start
+                       , prevIdx
+                       , curLine - Vector.length leftLinesHd
+                       , leftStringsTl
+                       , leftLinesTl
+                       , [leftStringsHd]
+                       , [leftLinesHd]
+                       )
+
                    end)
           end
       | (_, _) =>
