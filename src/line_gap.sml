@@ -1705,10 +1705,9 @@ struct
                       if midpoint >= 0 then
                         let
                           val _ = println "1640"
-                          val slice = VectorSlice.slice
-                            (leftLinesHd, 0, SOME (midpoint + 1))
                         in
-                          VectorSlice.vector slice
+                          Vector.tabulate (midpoint, fn idx =>
+                            Vector.sub (leftLinesHd, idx + 1) - stringStart)
                         end
                       else
                         Vector.fromList []
