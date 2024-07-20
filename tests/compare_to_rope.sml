@@ -65,13 +65,22 @@ struct
 
   fun main () =
     let
-      val (rope, gap) = compareTxns SvelteComponent.txns
-      val _ = print "string contents are equal\n"
-      val _ = LineGap.verifyLines gap
-    (*
-    val _ = compareTxns Rust.txns
-    val _ = compareTxns Seph.txns
-    val _ = compareTxns Automerge.txns
+      val _ = compareTxns SvelteComponent.txns
+      val _ = print "string contents and line metadata are equal for svelte\n"
+
+    (* compile times are much longer with the other datasets included
+     * but running those datasets did not detect any issues after
+     * all issues were fixed with Svelte.
+    
+     * So comment these datasets out.
+    val _ = compareTxns RustCode.txns
+    val _ = print "string contents and line metadata are equal for rust\n"
+    
+    val _ = compareTxns SephBlog.txns
+    val _ = print "string contents and line metadata equal for seh"
+    
+    val _ = compareTxns AutomergePaper.txns
+    val _ = print "string contents and line metadata equal for automerge"
     *)
     in
       ()

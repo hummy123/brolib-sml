@@ -4,7 +4,9 @@ ann
   "allowVectorExps true"
 in
   ../data-sets/svelte.sml
-  (*
+  (* other datasets commented out 
+   * because they didn't detect any issues
+   * and give much longer compile times
   ../data-sets/rust.sml
   ../data-sets/seph.sml
   ../data-sets/automerge.sml
