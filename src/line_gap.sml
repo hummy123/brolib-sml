@@ -53,97 +53,6 @@ struct
     , rightLines = []
     }
 
-  (* TEST CODE *)
-  local
-    fun lineBreaksToString vec =
-      (Vector.foldr (fn (el, acc) => Int.toString el ^ ", " ^ acc) "" vec)
-      ^ "\n"
-
-    fun checkLineBreaks (v1, v2) =
-      if v1 = v2 then
-        ()
-      else
-        let
-          val _ = print ("broken: " ^ (lineBreaksToString v1))
-          val _ = print ("fixed: " ^ (lineBreaksToString v2))
-        in
-          ()
-        end
-
-    fun goToStart (leftStrings, leftLines, accStrings, accLines) =
-      case (leftStrings, leftLines) of
-        (lsHd :: lsTl, llHd :: llTl) =>
-          goToStart (lsTl, llTl, lsHd :: accStrings, llHd :: accLines)
-      | (_, _) => (accStrings, accLines)
-
-    fun verifyLineList (strings, lines) =
-      case (strings, lines) of
-        (strHd :: strTl, lHd :: lTl) =>
-          let
-            val checkLines = countLineBreaks strHd
-          in
-            if checkLines = lHd then
-              verifyLineList (strTl, lTl)
-            else
-              let
-                val _ = print "line metadata is incorrect\n"
-                val _ = checkLineBreaks (lHd, checkLines)
-              in
-                raise Empty
-              end
-          end
-      | (_, _) => print "verified lines; no problems\n"
-  in
-    fun verifyLines (buffer: t) =
-      let
-        val (strings, lines) =
-          goToStart
-            ( #leftStrings buffer
-            , #leftLines buffer
-            , #rightStrings buffer
-            , #rightLines buffer
-            )
-      in
-        verifyLineList (strings, lines)
-      end
-  end
-
-  local
-    fun calcIndexList (accIdx, lst) =
-      case lst of
-        [] => accIdx
-      | hd :: tl => calcIndexList (String.size hd + accIdx, tl)
-
-    fun calcIndexStart lst = calcIndexList (0, lst)
-  in
-    fun verifyIndex (buffer: t) =
-      let
-        val bufferIdx = #idx buffer
-        val correctIdx = calcIndexStart (#leftStrings buffer)
-
-        val _ =
-          if bufferIdx = correctIdx then
-            print "idx is correct\n"
-          else
-            let
-              val msg = String.concat
-                [ "idx is incorrect;"
-                , "bufferIdx: "
-                , Int.toString bufferIdx
-                , "; correctIdx: "
-                , Int.toString correctIdx
-                , "\n"
-                ]
-              val _ = print msg
-              val _ = raise Size
-            in
-              print msg
-            end
-      in
-        ()
-      end
-  end
-
   local
     fun helpToString (acc, input) =
       case input of
@@ -1234,8 +1143,6 @@ struct
                       in
                         VectorSlice.vector slice
                       end
-
-                  val nextLine = curLine + Vector.length newLines
                 in
                   (* Try joining new string with left head if possible. *)
                   (case (leftStrings, leftLines) of
@@ -1270,7 +1177,7 @@ struct
                             * once buffer is done deleting. *)
                            deleteRightFromHere
                              ( curIdx + String.size newString
-                             , nextLine
+                             , curLine + Vector.length newLines
                              , nextIdx
                              , finish
                              , newLeftStringsHd :: leftStringsTl
@@ -1292,11 +1199,10 @@ struct
                            , rightStringsTl
                            , rightLinesTl
                            )
-
                    | (_, _) =>
                        deleteRightFromHere
                          ( nextIdx
-                         , nextLine
+                         , curLine + Vector.length newLines
                          , nextIdx
                          , finish
                          , newString :: leftStrings
@@ -1681,7 +1587,6 @@ struct
                       else
                         Vector.fromList []
                     end
-
                 in
                   { idx = prevIdx + sub1Length
                   , line =
@@ -1874,5 +1779,96 @@ struct
           )
       else
         buffer
+  end
+
+  (* TEST CODE *)
+  local
+    fun lineBreaksToString vec =
+      (Vector.foldr (fn (el, acc) => Int.toString el ^ ", " ^ acc) "" vec)
+      ^ "\n"
+
+    fun checkLineBreaks (v1, v2) =
+      if v1 = v2 then
+        ()
+      else
+        let
+          val _ = print ("broken: " ^ (lineBreaksToString v1))
+          val _ = print ("fixed: " ^ (lineBreaksToString v2))
+        in
+          ()
+        end
+
+    fun goToStart (leftStrings, leftLines, accStrings, accLines) =
+      case (leftStrings, leftLines) of
+        (lsHd :: lsTl, llHd :: llTl) =>
+          goToStart (lsTl, llTl, lsHd :: accStrings, llHd :: accLines)
+      | (_, _) => (accStrings, accLines)
+
+    fun verifyLineList (strings, lines) =
+      case (strings, lines) of
+        (strHd :: strTl, lHd :: lTl) =>
+          let
+            val checkLines = countLineBreaks strHd
+          in
+            if checkLines = lHd then
+              verifyLineList (strTl, lTl)
+            else
+              let
+                val _ = print "line metadata is incorrect\n"
+                val _ = checkLineBreaks (lHd, checkLines)
+              in
+                raise Empty
+              end
+          end
+      | (_, _) => print "verified lines; no problems\n"
+  in
+    fun verifyLines (buffer: t) =
+      let
+        val (strings, lines) =
+          goToStart
+            ( #leftStrings buffer
+            , #leftLines buffer
+            , #rightStrings buffer
+            , #rightLines buffer
+            )
+      in
+        verifyLineList (strings, lines)
+      end
+  end
+
+  local
+    fun calcIndexList (accIdx, lst) =
+      case lst of
+        [] => accIdx
+      | hd :: tl => calcIndexList (String.size hd + accIdx, tl)
+
+    fun calcIndexStart lst = calcIndexList (0, lst)
+  in
+    fun verifyIndex (buffer: t) =
+      let
+        val bufferIdx = #idx buffer
+        val correctIdx = calcIndexStart (#leftStrings buffer)
+
+        val _ =
+          if bufferIdx = correctIdx then
+            print "idx is correct\n"
+          else
+            let
+              val msg = String.concat
+                [ "idx is incorrect;"
+                , "bufferIdx: "
+                , Int.toString bufferIdx
+                , "; correctIdx: "
+                , Int.toString correctIdx
+                , "\n"
+                ]
+              val _ = print msg
+              val _ = raise Size
+            in
+              print msg
+            end
+      in
+        ()
+      end
   end
 end
