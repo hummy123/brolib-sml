@@ -3,6 +3,11 @@
 /bench/gap_buffer_seph
 /bench/gap_buffer_automerge
 
+/bench/line_gap_svelte
+/bench/line_gap_rust
+/bench/line_gap_seph
+/bench/line_gap_automerge
+
 /bench/rope_svelte
 /bench/rope_rust
 /bench/rope_seph
