@@ -1,4 +1,26 @@
-structure LineGap =
+signature LINE_GAP =
+sig
+  type t =
+    { idx: int
+    , leftStrings: string list
+    , rightStrings: string list
+
+    , line: int
+    , leftLines: int vector list
+    , rightLines: int vector list
+    }
+
+  val delete: int * int * t -> t
+  val empty: t
+  val insert: int * string * t -> t
+  val toString: t -> string
+
+  (* for testing *)
+  val verifyIndex: t -> unit
+  val verifyLines: t -> unit
+end
+
+structure LineGap :> LINE_GAP =
 struct
   local
     fun helpCountLineBreaks (pos, acc, str) =
