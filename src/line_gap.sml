@@ -10,10 +10,13 @@ sig
     , rightLines: int vector list
     }
 
-  val delete: int * int * t -> t
   val empty: t
-  val insert: int * string * t -> t
+
+  val fromString: string -> t
   val toString: t -> string
+
+  val delete: int * int * t -> t
+  val insert: int * string * t -> t
 
   (* for testing *)
   val verifyIndex: t -> unit
@@ -73,6 +76,15 @@ struct
     , line = 0
     , leftLines = []
     , rightLines = []
+    }
+
+  fun fromString str =
+    { idx = 0
+    , leftStrings = []
+    , rightStrings = [str]
+    , line = 0
+    , leftLines = []
+    , rightLines = [countLineBreaks str]
     }
 
   local
