@@ -19,6 +19,8 @@ sig
   val insert: int * string * t -> t
   val append: string * t -> t
 
+  val goToStart: t -> t
+
   (* for testing *)
   val verifyIndex: t -> unit
   val verifyLines: t -> unit
@@ -1942,6 +1944,69 @@ struct
       else
         buffer
   end
+
+  fun helpGoToStart
+    (idx, line, leftStrings, leftLines, rightStrings, rightLines) =
+    case (leftStrings, leftLines) of
+      (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
+        (case (rightStrings, rightLines) of
+           (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
+             if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
+               (* join if possible *)
+               let
+                 val newRstrHd = lStrHd ^ rStrHd
+                 val newRlnHd =
+                   Vector.tabulate
+                     ( Vector.length lLnHd + Vector.length rLnHd
+                     , fn lnIdx =>
+                         if lnIdx < Vector.length lLnHd then
+                           Vector.sub (lLnHd, lnIdx)
+                         else
+                           Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
+                           + String.size lStrHd
+                     )
+               in
+                 helpGoToStart
+                   ( idx - String.size lStrHd
+                   , line - Vector.length lLnHd
+                   , lStrTl
+                   , lLnTl
+                   , newRstrHd :: rStrTl
+                   , newRlnHd :: rLnTl
+                   )
+               end
+             else
+               helpGoToStart
+                 ( idx - String.size lStrHd
+                 , line - Vector.length lLnHd
+                 , lStrTl
+                 , lLnTl
+                 , lStrHd :: rightStrings
+                 , lLnHd :: rightLines
+                 )
+         | (_, _) =>
+             (* rightStrings and rightLines are both empty *)
+             helpGoToStart
+               ( idx - String.size lStrHd
+               , line - Vector.length lLnHd
+               , lStrTl
+               , lLnTl
+               , [lStrHd]
+               , [lLnHd]
+               ))
+    | (_, _) =>
+        (* left strings are empty, meaning we are at start and can return *)
+        { idx = idx
+        , line = line
+        , leftStrings = []
+        , leftLines = []
+        , rightStrings = rightStrings
+        , rightLines = rightLines
+        }
+
+  fun goToStart
+    ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
+    helpGoToStart (idx, line, leftStrings, leftLines, rightStrings, rightLines)
 
   (* TEST CODE *)
   local
