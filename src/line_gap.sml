@@ -17,6 +17,7 @@ sig
 
   val delete: int * int * t -> t
   val insert: int * string * t -> t
+  val append: string * t -> t
 
   (* for testing *)
   val verifyIndex: t -> unit
@@ -982,6 +983,133 @@ struct
           )
       end
   end
+
+  fun helpGoToEndAndAppend
+    ( newString
+    , newLines
+    , idx
+    , leftStrings
+    , rightStrings
+    , line
+    , leftLines
+    , rightLines
+    ) =
+    case (rightStrings, rightLines) of
+      (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
+        (* move gap rightwards one node,
+         * and join with right head with left if possible *)
+        (case (leftStrings, leftLines) of
+           (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
+             if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
+               let
+                 val newLstrHd = lStrHd ^ rStrHd
+                 val newLlnHd =
+                   Vector.tabulate
+                     ( Vector.length lLnHd + Vector.length rLnHd
+                     , fn lnIdx =>
+                         if lnIdx < Vector.length lLnHd then
+                           Vector.sub (lLnHd, lnIdx)
+                         else
+                           Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
+                           + String.size lStrHd
+                     )
+               in
+                 helpGoToEndAndAppend
+                   ( newString
+                   , newLines
+                   , idx + String.size rStrHd
+                   , newLstrHd :: lStrTl
+                   , rStrTl
+                   , line + Vector.length rLnHd
+                   , newLlnHd :: lLnTl
+                   , rLnTl
+                   )
+               end
+             else
+               helpGoToEndAndAppend
+                 ( newString
+                 , newLines
+                 , idx + String.size rStrHd
+                 , rStrHd :: leftStrings
+                 , rStrTl
+                 , line + Vector.length rLnHd
+                 , rLnHd :: leftLines
+                 , rLnTl
+                 )
+         | (_, _) =>
+             (* left side is empty; we are at start *)
+             helpGoToEndAndAppend
+               ( newString
+               , newLines
+               , String.size rStrHd
+               , [rStrHd]
+               , rStrTl
+               , Vector.length rLnHd
+               , [rLnHd]
+               , rLnTl
+               ))
+    | (_, _) =>
+        (* we have reached the end, and right side is empty *)
+        (case (leftStrings, leftLines) of
+           (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
+             if isInLimit (lStrHd, newString, lLnHd, newLines) then
+               (* join new string and line with left *)
+               let
+                 val newLstrHd = lStrHd ^ newString
+                 val newLlnHd =
+                   Vector.tabulate
+                     ( Vector.length lLnHd + Vector.length newLines
+                     , fn lnIdx =>
+                         if lnIdx < Vector.length lLnHd then
+                           Vector.sub (lLnHd, lnIdx)
+                         else
+                           Vector.sub (newLines, lnIdx - Vector.length lLnHd)
+                           + String.size lStrHd
+                     )
+               in
+                 { idx = idx + String.size newString
+                 , line = line + Vector.length newLines
+                 , leftStrings = newLstrHd :: lStrTl
+                 , leftLines = newLlnHd :: lLnTl
+                 , rightStrings = []
+                 , rightLines = []
+                 }
+               end
+             else
+               { idx = idx + String.size newString
+               , line = line + Vector.length newLines
+               , leftStrings = newString :: leftStrings
+               , leftLines = newLines :: leftLines
+               , rightStrings = []
+               , rightLines = []
+               }
+         | (_, _) =>
+             { idx = idx + String.size newString
+             , line = line + Vector.length newLines
+             , leftStrings = newString :: leftStrings
+             , leftLines = newLines :: leftLines
+             , rightStrings = []
+             , rightLines = []
+             })
+
+  fun append
+    ( newString
+    , {idx, line, leftStrings, leftLines, rightStrings, rightLines}: t
+    ) =
+    let
+      val newLines = countLineBreaks newString
+    in
+      helpGoToEndAndAppend
+        ( newString
+        , newLines
+        , idx
+        , leftStrings
+        , rightStrings
+        , line
+        , leftLines
+        , rightLines
+        )
+    end
 
   (* Delete function and helper functions for it. *)
   local
