@@ -20,6 +20,7 @@ sig
   val append: string * t -> t
 
   val goToStart: t -> t
+  val goToIdx: int * t -> t
   val goToLine: int * t -> t
 
   (* for testing *)
@@ -2009,61 +2010,145 @@ struct
     ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
     helpGoToStart (idx, line, leftStrings, leftLines, rightStrings, rightLines)
 
+  (* function to abstract leftwards movement.
+   * if the left hd and the right hd can be joined in one node
+   * during movement, while staying in limit, then join and move.
+   * Else, move without joining.
+   * The code to do this is a bit boiler-plate heavy
+   * so it has been abstracted to a reusable function. 
+   *
+   * The last parameter, fGoLeft, is the function to return to
+   * after the leftwards movement.
+   *
+   * The third paremeter, searchTo, is the line number or UTF-8
+   * index to search. Since moveLeft is meant to abstract over
+   * the search number, this parameter is just passed to fGoLeft.
+   * *)
+  fun moveLeft
+    ( idx, line, searchTo
+    , leftStrings, leftLines, rightStrings, rightLines
+    , lStrHd, lStrTl, lLnHd, lLnTl
+    , fGoLeft
+    ) =
+      case (rightStrings, rightLines) of
+        (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
+          if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
+            (* join into a single node before moving *)
+            let
+              val newRstrHd = lStrHd ^ rStrHd
+              val newRlnHd =
+                Vector.tabulate
+                  ( Vector.length lLnHd + Vector.length rLnHd
+                  , fn lnIdx =>
+                      if lnIdx < Vector.length lLnHd then
+                        Vector.sub (lLnHd, lnIdx)
+                      else
+                        Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
+                        + String.size lStrHd
+                  )
+            in
+              fGoLeft
+                ( idx - String.size lStrHd
+                , line - Vector.length lLnHd
+                , searchTo
+                , lStrTl
+                , lLnTl
+                , newRstrHd :: rStrTl
+                , newRlnHd :: rLnTl
+                )
+            end
+          else
+            (* move without joining *)
+            fGoLeft
+              ( idx - String.size lStrHd
+              , line - Vector.length lLnHd
+              , searchTo
+              , lStrTl
+              , lLnTl
+              , lStrHd :: rightStrings
+              , lLnHd :: rightLines
+              )
+      | (_, _) =>
+          (* right side is empty, so just move left without joining *)
+          fGoLeft
+            ( idx - String.size lStrHd
+            , line - Vector.length lLnHd
+            , searchTo
+            , lStrTl
+            , lLnTl
+            , [lStrHd]
+            , [lLnHd]
+            )
+
+  (* same as moveLeft function, except it move rightwards instead *)
+  fun moveRight
+    ( idx, line, searchTo
+    , leftStrings, leftLines, rightStrings, rightLines
+    , rStrHd, rStrTl, rLnHd, rLnTl
+    , fGoRight
+    ) =
+      case (leftStrings, leftLines) of
+         (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
+           if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
+             (* can join while staying in limit, so join and move right *)
+             let
+               val newLstrHd = lStrHd ^ rStrHd
+               val newLlnHd =
+                 Vector.tabulate
+                   ( Vector.length lLnHd + Vector.length rLnHd
+                   , fn lnIdx =>
+                       if lnIdx < Vector.length lLnHd then
+                         Vector.sub (lLnHd, lnIdx)
+                       else
+                         Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
+                         + String.size lStrHd
+                   )
+             in
+               fGoRight
+                 ( idx + String.size rStrHd
+                 , line + Vector.length rLnHd
+                 , searchTo
+                 , newLstrHd :: lStrTl
+                 , newLlnHd :: lLnTl
+                 , rStrTl
+                 , rLnTl
+                 )
+             end
+           else
+             (* cannot join while staying in limit, so just move right *)
+             fGoRight
+               ( idx + String.size rStrHd
+               , line + Vector.length rLnHd
+               , searchTo
+               , rStrHd :: leftStrings
+               , rLnHd :: leftLines
+               , rStrTl
+               , rLnTl
+               )
+       | (_, _) =>
+           (* left side is empty, so just move rightwards without joining *)
+           fGoRight
+             ( String.size rStrHd
+             , Vector.length rLnHd
+             , searchTo
+             , [rStrHd]
+             , [rLnHd]
+             , rStrTl
+             , rLnTl
+             )
+
   fun helpGoToLineLeft
     (idx, line, searchLine, leftStrings, leftLines, rightStrings, rightLines) =
     case (leftStrings, leftLines) of
       (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
         if searchLine < line - Vector.length lLnHd then
           (* move leftwards, joining if possible *)
-          (case (rightStrings, rightLines) of
-             (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
-               if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
-                 (* join into a single node before moving *)
-                 let
-                   val newRstrHd = lStrHd ^ rStrHd
-                   val newRlnHd =
-                     Vector.tabulate
-                       ( Vector.length lLnHd + Vector.length rLnHd
-                       , fn lnIdx =>
-                           if lnIdx < Vector.length lLnHd then
-                             Vector.sub (lLnHd, lnIdx)
-                           else
-                             Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
-                             + String.size lStrHd
-                       )
-                 in
-                   helpGoToLineLeft
-                     ( idx - String.size lStrHd
-                     , line - Vector.length lLnHd
-                     , searchLine
-                     , lStrTl
-                     , lLnTl
-                     , newRstrHd :: rStrTl
-                     , newRlnHd :: rLnTl
-                     )
-                 end
-               else
-                 (* move without joining *)
-                 helpGoToLineLeft
-                   ( idx - String.size lStrHd
-                   , line - Vector.length lLnHd
-                   , searchLine
-                   , lStrTl
-                   , lLnTl
-                   , lStrHd :: rightStrings
-                   , lLnHd :: rightLines
-                   )
-           | (_, _) =>
-               (* right side is empty, so just move left without joining *)
-               helpGoToLineLeft
-                 ( idx - String.size lStrHd
-                 , line - Vector.length lLnHd
-                 , searchLine
-                 , lStrTl
-                 , lLnTl
-                 , [lStrHd]
-                 , [lLnHd]
-                 ))
+          moveLeft
+            ( idx, line, searchLine
+            , leftStrings, leftLines, rightStrings, rightLines
+            , lStrHd, lStrTl, lLnHd, lLnTl
+            , helpGoToLineLeft
+            ) 
         else
           (* line is at left head, so place it to the right and return *)
           { idx = idx - String.size lStrHd
@@ -2089,55 +2174,12 @@ struct
       (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
         if searchLine > line + Vector.length rLnHd then
           (* have to move rightwards *)
-          (case (leftStrings, leftLines) of
-             (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
-               if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
-                 (* can join while staying in limit, so join and move right *)
-                 let
-                   val newLstrHd = lStrHd ^ rStrHd
-                   val newLlnHd =
-                     Vector.tabulate
-                       ( Vector.length lLnHd + Vector.length rLnHd
-                       , fn lnIdx =>
-                           if lnIdx < Vector.length lLnHd then
-                             Vector.sub (lLnHd, lnIdx)
-                           else
-                             Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
-                             + String.size lStrHd
-                       )
-                 in
-                   helpGoToLineRight
-                     ( idx + String.size rStrHd
-                     , line + Vector.length rLnHd
-                     , searchLine
-                     , newLstrHd :: lStrTl
-                     , newLlnHd :: lLnTl
-                     , rStrTl
-                     , rLnTl
-                     )
-                 end
-               else
-                 (* cannot join while staying in limit, so just move right *)
-                 helpGoToLineRight
-                   ( idx + String.size rStrHd
-                   , line + Vector.length rLnHd
-                   , searchLine
-                   , rStrHd :: leftStrings
-                   , rLnHd :: leftLines
-                   , rStrTl
-                   , rLnTl
-                   )
-           | (_, _) =>
-               (* left side is empty, so just move rightwards without joining *)
-               helpGoToLineRight
-                 ( String.size rStrHd
-                 , Vector.length rLnHd
-                 , searchLine
-                 , [rStrHd]
-                 , [rLnHd]
-                 , rStrTl
-                 , rLnTl
-                 ))
+          moveRight
+            ( idx, line, searchLine
+            , leftStrings, leftLines, rightStrings, rightLines
+            , rStrHd, rStrTl, rLnHd, rLnTl
+            , helpGoToLineRight
+            ) 
         else
           (* searchLine is in rStrHd/rLnHd, so return *)
           { idx = idx
@@ -2176,6 +2218,96 @@ struct
           ( idx
           , line
           , searchLine
+          , leftStrings
+          , leftLines
+          , rightStrings
+          , rightLines
+          )
+      else
+        buffer
+    end
+
+  fun helpGoToIdxLeft
+    (idx, line, searchIdx, leftStrings, leftLines, rightStrings, rightLines) =
+    case (leftStrings, leftLines) of
+      (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
+        if searchIdx < idx - String.size lStrHd then
+          (* move leftwards, joining if possible *)
+          moveLeft
+            ( idx, line, searchIdx
+            , leftStrings, leftLines, rightStrings, rightLines
+            , lStrHd, lStrTl, lLnHd, lLnTl
+            , helpGoToIdxLeft
+            ) 
+        else
+          (* line is at left head, so place it to the right and return *)
+          { idx = idx - String.size lStrHd
+          , line = line - Vector.length lLnHd
+          , leftStrings = lStrTl
+          , leftLines = lLnTl
+          , rightStrings = lStrHd :: rightStrings
+          , rightLines = lLnHd :: rightLines
+          }
+    | (_, _) =>
+        (* left side is empty, so just return *)
+        { idx = idx
+        , line = line
+        , leftStrings = []
+        , leftLines = []
+        , rightStrings = rightStrings
+        , rightLines = rightLines
+        }
+
+  fun helpGoToIdxRight
+    (idx, line, searchIdx, leftStrings, leftLines, rightStrings, rightLines) =
+    case (rightStrings, rightLines) of
+      (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
+        if searchIdx > idx + String.size rStrHd then
+          (* have to move rightwards *)
+          moveRight
+            ( idx, line, searchIdx
+            , leftStrings, leftLines, rightStrings, rightLines
+            , rStrHd, rStrTl, rLnHd, rLnTl
+            , helpGoToIdxRight
+            ) 
+        else
+          (* searchLine is in rStrHd/rLnHd, so return *)
+          { idx = idx
+          , line = line
+          , leftStrings = leftStrings
+          , leftLines = leftLines
+          , rightStrings = rightStrings
+          , rightLines = rightLines
+          }
+    | (_, _) =>
+        (* right side is empty, so just return *)
+        { idx = idx
+        , line = line
+        , leftStrings = leftStrings
+        , leftLines = leftLines
+        , rightStrings = []
+        , rightLines = []
+        }
+
+  fun goToIdx (searchIdx, buffer: t) =
+    let
+      val {idx, line, leftStrings, leftLines, rightStrings, rightLines} = buffer
+    in
+      if searchIdx < idx then
+        helpGoToIdxLeft
+          ( idx
+          , line
+          , searchIdx
+          , leftStrings
+          , leftLines
+          , rightStrings
+          , rightLines
+          )
+      else if searchIdx > idx then
+        helpGoToIdxRight
+          ( idx
+          , line
+          , searchIdx
           , leftStrings
           , leftLines
           , rightStrings
