@@ -2203,7 +2203,7 @@ struct
     let
       val {idx, line, leftStrings, leftLines, rightStrings, rightLines} = buffer
     in
-      if searchLine < idx then
+      if searchLine < line then
         helpGoToLineLeft
           ( idx
           , line
@@ -2213,7 +2213,7 @@ struct
           , rightStrings
           , rightLines
           )
-      else if searchLine > idx then
+      else if searchLine > line then
         helpGoToLineRight
           ( idx
           , line
