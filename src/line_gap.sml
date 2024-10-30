@@ -2057,8 +2057,8 @@ struct
                , line + Vector.length rLnHd
                , rStrHd :: leftStrings
                , rLnHd :: leftLines
-               , []
-               , []
+               , rStrTl
+               , rLnTl
                ))
     | (_, _) =>
         (* rightStrings strings are empty, meaning we are at end and can return *)
