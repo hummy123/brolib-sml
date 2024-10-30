@@ -20,6 +20,7 @@ sig
   val append: string * t -> t
 
   val goToStart: t -> t
+  val goToEnd: t -> t
   val goToIdx: int * t -> t
   val goToLine: int * t -> t
 
@@ -2009,6 +2010,69 @@ struct
   fun goToStart
     ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
     helpGoToStart (idx, line, leftStrings, leftLines, rightStrings, rightLines)
+
+  fun helpGoToEnd
+    (idx, line, leftStrings, leftLines, rightStrings, rightLines) =
+    case (rightStrings, rightLines) of
+      (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
+        (case (leftStrings, leftLines) of
+           (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
+             if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
+               (* join if possible *)
+               let
+                 val newLstrHd = lStrHd ^ rStrHd
+                 val newLlnHd =
+                   Vector.tabulate
+                     ( Vector.length lLnHd + Vector.length rLnHd
+                     , fn lnIdx =>
+                         if lnIdx < Vector.length lLnHd then
+                           Vector.sub (lLnHd, lnIdx)
+                         else
+                           Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
+                           + String.size lStrHd
+                     )
+               in
+                 helpGoToEnd
+                   ( idx + String.size rStrHd
+                   , line + Vector.length rLnHd
+                   , newLstrHd :: lStrTl
+                   , newLlnHd :: lLnTl
+                   , rStrTl
+                   , rLnTl
+                   )
+               end
+             else
+               helpGoToEnd
+                 ( idx + String.size rStrHd
+                 , line + Vector.length rLnHd
+                 , rStrHd :: leftStrings
+                 , rLnHd :: leftLines
+                 , rStrTl
+                 , rLnTl
+                 )
+         | (_, _) =>
+             (* rightStrings and rightLines are both empty *)
+             helpGoToEnd
+               ( idx + String.size rStrHd
+               , line + Vector.length rLnHd
+               , rStrHd :: leftStrings
+               , rLnHd :: leftLines
+               , []
+               , []
+               ))
+    | (_, _) =>
+        (* rightStrings strings are empty, meaning we are at end and can return *)
+        { idx = idx
+        , line = line
+        , leftStrings = leftStrings
+        , leftLines = leftLines
+        , rightStrings = []
+        , rightLines = []
+        }
+
+  fun goToEnd
+    ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
+    helpGoToEnd (idx, line, leftStrings, leftLines, rightStrings, rightLines)
 
   (* function to abstract leftwards movement.
    * if the left hd and the right hd can be joined in one node
