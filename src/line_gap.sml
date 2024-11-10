@@ -2175,10 +2175,8 @@ struct
       let
         val finish = start + length
         val {idx, leftStrings, rightStrings, ...} = buffer
-        val endWith = Char.chr 0
-        val endWith = Char.toString endWith
       in
-        sub (start, finish, idx, leftStrings, rightStrings, endWith)
+        sub (start, finish, idx, leftStrings, rightStrings, "\u0000")
       end
 
     fun substring (start, length, buffer : t) =
