@@ -318,7 +318,6 @@ struct
              * Need to remove the current node without deleting any further. *)
             {idx = prevIdx, left = tail, right = right}
         end
-
     | [] => {idx = curIdx, left = left, right = right}
 
   fun deleteFromLeftAndRight (start, finish, curIdx, left, right) =
