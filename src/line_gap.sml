@@ -14,7 +14,10 @@ sig
 
   val fromString: string -> t
   val toString: t -> string
+
   val substring: int * int * t -> string
+  val nullSubstring: int * int * t -> string
+  val substringWithEnd: int * int * t * string -> string
 
   val delete: int * int * t -> t
   val insert: int * string * t -> t
@@ -1950,41 +1953,49 @@ struct
   end
 
   local
-    fun subRightFromHere (curIdx, finish, right, acc) =
+    fun consIfNotEmpty (s, acc) =
+      if String.size s > 0 then
+        s :: acc
+      else
+        acc
+
+    (* We build up the string list and, at the end,
+     * we always make sure to reverse the list too
+     * because the order of the list matters for String.concat *)
+    fun subRightFromHere (curIdx, finish, right, acc, endWith) =
       case right of
         hd :: tl =>
           let
             val nextIdx = curIdx + String.size hd
           in
             if nextIdx < finish then
-              subRightFromHere (curIdx, finish, tl, hd :: acc)
+              subRightFromHere (curIdx, finish, tl, hd :: acc, endWith)
             else if nextIdx > finish then
               let
                 val length = finish - curIdx
                 val accHd = String.substring (hd, 0, length)
-                val acc = accHd :: acc
-                val acc = List.rev acc
+                val acc = consIfNotEmpty (endWith, accHd :: acc)
               in
-                acc
+                List.rev acc
               end
             else
               (* nextIdx = finish 
                * so add current hd to vec and then concat *)
                let
                  val acc = hd :: acc
-                 val acc = List.rev acc
+                 val acc = consIfNotEmpty (endWith, acc)
                in
-                 acc
+                 List.rev acc
                end
           end
       | [] =>
           let
-            val acc = List.rev acc
+            val acc = consIfNotEmpty (endWith, acc)
           in
-            acc
+            List.rev acc
           end
 
-    fun moveRightAndSub (start, finish, curIdx, right) =
+    fun moveRightAndSub (start, finish, curIdx, right, endWith) =
       case right of
         hd :: tl =>
           let
@@ -1992,7 +2003,7 @@ struct
           in
             if nextIdx < start then
               (* continue moving rightwards *)
-              moveRightAndSub (start, finish, nextIdx, tl)
+              moveRightAndSub (start, finish, nextIdx, tl, endWith)
             else if nextIdx > start then
               if nextIdx < finish then
                 (* get starting acc, 
@@ -2001,7 +2012,7 @@ struct
                    val substart = start - curIdx
                    val length = String.size hd - substart
                    val acc = [String.substring (hd, substart, length)]
-                   val acc = subRightFromHere (nextIdx, finish, tl, acc)
+                   val acc = subRightFromHere (nextIdx, finish, tl, acc, endWith)
                  in
                    String.concat acc
                  end
@@ -2011,23 +2022,29 @@ struct
                   val substart = start - curIdx
                   val subfinish = finish - curIdx
                   val length = subfinish - substart
+                  val str = String.substring (hd, substart, length)
                 in
-                  String.substring (hd, substart, length)
+                  if String.size endWith > 0 
+                  then str ^ endWith
+                  else str
                 end
               else
                 (* have to get substring from middle to end *)
                 let
                   val substart = start - curIdx
                   val length = String.size hd - substart
+                  val str = String.substring (hd, substart, length)
                 in
-                  String.substring (hd, substart, length)
+                  if String.size endWith > 0 
+                  then str ^ endWith
+                  else str
                 end
             else
               (* nextIdx = start
                * so we have to ignore this string
                * and start building acc from tl *)
                let
-                 val acc = subRightFromHere (nextIdx, finish, tl, [])
+                 val acc = subRightFromHere (nextIdx, finish, tl, [], endWith)
                in
                  String.concat acc
                end
@@ -2036,7 +2053,7 @@ struct
           (* if there are no strings to the right,
            * return empty string,
            * as we cannot do much else. *)
-          ""
+          endWith
 
     fun subLeftFromHere (start, curIdx, left, acc) =
       case left of
@@ -2067,16 +2084,16 @@ struct
                  String.concat acc
                end
           end
-      | [] =>  String.concat acc
+      | [] => String.concat acc
 
-    fun subFromLeftAndRight (start, finish, curIdx, left, right) =
+    fun subFromLeftAndRight (start, finish, curIdx, left, right, endWith) =
       let
-        val acc = subRightFromHere (curIdx, finish, right, [])
+        val acc = subRightFromHere (curIdx, finish, right, [], endWith)
       in
         subLeftFromHere (start, curIdx, left, acc)
       end
 
-    fun moveLeftAndSub (start, finish, curIdx, left) =
+    fun moveLeftAndSub (start, finish, curIdx, left, endWith) =
       case left of
         hd :: tl =>
           let
@@ -2084,14 +2101,14 @@ struct
           in
             if prevIdx > finish then
               (* continue *)
-              moveLeftAndSub (start, finish, prevIdx, tl)
+              moveLeftAndSub (start, finish, prevIdx, tl, endWith)
             else if prevIdx < finish then
               if prevIdx > start then
                 (* get initial acc
                  * and continue substring leftwards *)
                 let
                   val length = finish - prevIdx
-                  val acc = [String.substring (hd, 0, length)]
+                  val str = String.substring (hd, 0, length) val acc = [str, endWith]
                 in
                   subLeftFromHere (start, prevIdx, tl, acc)
                 end
@@ -2102,8 +2119,11 @@ struct
                    val substart = start - prevIdx
                    val subfinish = finish - prevIdx
                    val length = subfinish - substart
+                   val str = String.substring (hd, substart, length)
                  in
-                   String.substring (hd, substart, length)
+                   if String.size endWith > 0 
+                   then str ^ endWith
+                   else str
                  end
               else
                 (* prevIdx = start
@@ -2111,41 +2131,62 @@ struct
                  let
                    val subfinish = finish - prevIdx
                    val length = String.size hd - subfinish
+                   val str = String.substring (hd, 0, length)
                  in
-                   String.substring (hd, 0, length)
+                   if String.size endWith > 0 
+                   then str ^ endWith
+                   else str
                  end
             else
               (* prevIdx = finish
                * so we want to ignore hd and start
                * subLeftFromHere with an empty list *)
-               subLeftFromHere (start, prevIdx, tl, []) 
+               subLeftFromHere (start, prevIdx, tl, [endWith]) 
           end
-      | [] => ""
+      | [] => endWith
 
-    fun sub (start, finish, curIdx, left, right) =
+    fun sub (start, finish, curIdx, left, right, endWith) =
       if start > curIdx then
         (* move rightwards to begin getting substring *)
-        moveRightAndSub (start, finish, curIdx, right)
+        moveRightAndSub (start, finish, curIdx, right, endWith)
       else if start < curIdx then
         if finish <= curIdx then
-          moveLeftAndSub (start, finish, curIdx, left)
+          moveLeftAndSub (start, finish, curIdx, left, endWith)
         else
           (* in middle of buffer we want to get substring from *)
-          subFromLeftAndRight (start, finish, curIdx, left, right)
+          subFromLeftAndRight (start, finish, curIdx, left, right, endWith)
       else
         let
           (* start = curIdx so only need to traverse right *)
-          val acc = subRightFromHere (curIdx, finish, right, [])
+          val acc = subRightFromHere (curIdx, finish, right, [], endWith)
         in
           String.concat acc
         end
   in
+    fun substringWithEnd (start, length, buffer : t, endWith) =
+      let
+        val finish = start + length
+        val {idx, leftStrings, rightStrings, ...} = buffer
+      in
+        sub (start, finish, idx, leftStrings, rightStrings, endWith)
+      end
+
+    fun nullSubstring (start, length, buffer : t) =
+      let
+        val finish = start + length
+        val {idx, leftStrings, rightStrings, ...} = buffer
+        val endWith = Char.chr 0
+        val endWith = Char.toString endWith
+      in
+        sub (start, finish, idx, leftStrings, rightStrings, endWith)
+      end
+
     fun substring (start, length, buffer : t) =
       let
         val finish = start + length
         val {idx, leftStrings, rightStrings, ...} = buffer
       in
-        sub (start, finish, idx, leftStrings, rightStrings)
+        sub (start, finish, idx, leftStrings, rightStrings, "")
       end
   end
 
