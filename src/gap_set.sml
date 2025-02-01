@@ -18,6 +18,10 @@ sig
   val insert: Fn.key * t -> t
 
   val fromList: Fn.key list -> t
+
+  val moveToStart: t -> t
+  val moveToEnd: t -> t
+  val moveTo: Fn.key * t -> t
 end
 
 functor MakeGapSet(Fn: GAP_SET_ELEMENT): GAP_SET =
@@ -228,4 +232,62 @@ struct
     case lst of
       hd :: tl => let val acc = insert (hd, acc) in helpFromList (tl, acc) end
     | [] => acc
+
+  fun fromList lst =
+    helpFromList (lst, {left = [], right = []})
+
+  fun helpMoveToStart (left, right) =
+    case left of
+      hd :: tl => helpMoveToStart (tl, joinStartOfRight (hd, right))
+    | [] => {left = left, right = right}
+
+  fun moveToStart {left, right} =
+    case left of
+      hd :: tl => helpMoveToStart (tl, joinStartOfRight (hd, right))
+    | [] => {left = left, right = right}
+
+  fun helpMoveToEnd (left, right) =
+    case right of
+      hd :: tl => helpMoveToEnd (joinEndOfLeft (hd, left), tl)
+    | [] => {left = left, right = right}
+
+  fun moveToEnd {left, right} =
+    case right of
+      hd :: tl => helpMoveToEnd (joinEndOfLeft (hd, left), tl)
+    | [] => {left = left, right = right}
+
+  fun moveLeft (to, left, right) =
+    case left of
+      hd :: tl =>
+        let
+          val first = Vector.sub (hd, 0)
+        in
+          if Fn.l (to, first) then
+            moveLeft (to, tl, joinStartOfRight (hd, right))
+          else
+            {left = left, right = right}
+        end
+    | [] => {left = left, right = right}
+
+  fun moveRight (to, left, right) =
+    case right of
+      hd :: tl =>
+        let
+          val last = Vector.sub (hd, Vector.length hd - 1)
+        in
+          if Fn.g (to, last) then moveRight (to, joinEndOfLeft (hd, left), tl)
+          else {left = left, right = right}
+        end
+    | [] => {left = left, right = right}
+
+  fun moveTo (to, {left, right}) =
+    case right of
+      hd :: _ =>
+        let
+          val rfist = Vector.sub (hd, 0)
+        in
+          if Fn.g (to, rfist) then moveRight (to, left, right)
+          else if Fn.l (to, rfist) then moveLeft (to, left, right)
+          else {left = left, right = right}
+        end
 end
