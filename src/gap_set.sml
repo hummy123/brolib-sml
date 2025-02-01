@@ -15,9 +15,15 @@ sig
 
   type t
 
+  val empty: t
+
   val insert: Fn.key * t -> t
 
   val fromList: Fn.key list -> t
+
+  val exists: Fn.key * t -> bool
+  val getMin: t -> Fn.key option
+  val getMax: t -> Fn.key option
 
   val moveToStart: t -> t
   val moveToEnd: t -> t
@@ -29,6 +35,8 @@ struct
   structure Fn = Fn
 
   type t = {left: Fn.key vector list, right: Fn.key vector list}
+
+  val empty = {left = [], right = []}
 
   fun isLessThanTarget (v1, v2) =
     Vector.length v1 + Vector.length v2 <= Fn.maxNodeSize
@@ -233,8 +241,7 @@ struct
       hd :: tl => let val acc = insert (hd, acc) in helpFromList (tl, acc) end
     | [] => acc
 
-  fun fromList lst =
-    helpFromList (lst, {left = [], right = []})
+  fun fromList lst = helpFromList (lst, empty)
 
   fun helpMoveToStart (left, right) =
     case left of
@@ -290,4 +297,54 @@ struct
           else if Fn.l (to, rfist) then moveLeft (to, left, right)
           else {left = left, right = right}
         end
+
+  fun helpGetMin (hd :: tl, prevHd) = helpGetMin (tl, hd)
+    | helpGetMin ([], prevHd) =
+        SOME (Vector.sub (prevHd, 0))
+
+  fun getMin {left = hd :: tl, right = _} = helpGetMin (tl, hd)
+    | getMin {left = [], right = hd :: _} =
+        SOME (Vector.sub (hd, 0))
+    | getMin {left = [], right = []} = NONE
+
+  fun helpGetMax (_, hd :: tl) = helpGetMax (hd, tl)
+    | helpGetMax (hd, []) =
+        SOME (Vector.sub (hd, Vector.length hd - 1))
+
+  fun getMax {left = _, right = hd :: tl} = helpGetMax (hd, tl)
+    | getMax {left = hd :: _, right = []} =
+        SOME (Vector.sub (hd, Vector.length hd - 1))
+    | getMax {left = [], right = []} = NONE
+
+  fun existsLeft (check, hd :: tl) =
+        let
+          val pos = findInsPos (check, hd)
+        in
+          if pos < 0 then existsLeft (check, tl)
+          else if pos = Vector.length hd then false
+          else Fn.eq (Vector.sub (hd, pos), check)
+        end
+    | existsLeft (_, []) = false
+
+  fun existsRight (check, hd :: tl) =
+        let
+          val pos = findInsPos (check, hd)
+        in
+          if pos = Vector.length hd then existsRight (check, tl)
+          else if pos < 0 then false
+          else Fn.eq (Vector.sub (hd, pos), check)
+        end
+    | existsRight (_, []) = false
+
+  fun exists (check, {left, right}) =
+    case right of
+      hd :: tl =>
+        let
+          val first = Vector.sub (hd, 0)
+        in
+          if Fn.g (check, first) then existsRight (check, tl)
+          else if Fn.eq (check, first) then true
+          else existsLeft (check, left)
+        end
+    | [] => existsLeft (check, left)
 end
