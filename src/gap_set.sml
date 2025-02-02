@@ -16,14 +16,17 @@ sig
   type t
 
   val empty: t
+  val isEmpty: t -> bool
 
-  val insert: Fn.key * t -> t
+  val add: Fn.key * t -> t
+  val remove: Fn.key * t -> t
 
   val fromList: Fn.key list -> t
+  val toVector: t -> Fn.key vector
 
   val exists: Fn.key * t -> bool
-  val getMin: t -> Fn.key option
-  val getMax: t -> Fn.key option
+  val min: t -> Fn.key option
+  val max: t -> Fn.key option
 
   val moveToStart: t -> t
   val moveToEnd: t -> t
@@ -38,11 +41,14 @@ struct
 
   val empty = {left = [], right = []}
 
+  fun isEmpty {left = [], right = []} = true
+    | isEmpty _ = false
+
+  fun singleton x =
+    {left = [], right = Vector.fromList [x]}
+
   fun isLessThanTarget (v1, v2) =
     Vector.length v1 + Vector.length v2 <= Fn.maxNodeSize
-
-  fun isThreeLessThanTarget (v1, v2, v3) =
-    Vector.length v1 + Vector.length v2 + Vector.length v3 <= Fn.maxNodeSize
 
   fun joinEndOfLeft (new, left) =
     case left of
@@ -223,7 +229,7 @@ struct
         in {left = joinEndOfLeft (new, left), right = right}
         end
 
-  fun insert (new, {left, right}: t) =
+  fun add (new, {left, right}: t) =
     (* look at elements to see which way to traverse *)
     case right of
       hd :: _ =>
@@ -235,13 +241,6 @@ struct
           else {left = left, right = right}
         end
     | [] => insLeft (new, left, right)
-
-  fun helpFromList (lst, acc) =
-    case lst of
-      hd :: tl => let val acc = insert (hd, acc) in helpFromList (tl, acc) end
-    | [] => acc
-
-  fun fromList lst = helpFromList (lst, empty)
 
   fun helpMoveToStart (left, right) =
     case left of
@@ -298,23 +297,23 @@ struct
           else {left = left, right = right}
         end
 
-  fun helpGetMin (hd :: tl, prevHd) = helpGetMin (tl, hd)
-    | helpGetMin ([], prevHd) =
+  fun helpMin (hd :: tl, prevHd) = helpMin (tl, hd)
+    | helpMin ([], prevHd) =
         SOME (Vector.sub (prevHd, 0))
 
-  fun getMin {left = hd :: tl, right = _} = helpGetMin (tl, hd)
-    | getMin {left = [], right = hd :: _} =
+  fun min {left = hd :: tl, right = _} = helpMin (tl, hd)
+    | min {left = [], right = hd :: _} =
         SOME (Vector.sub (hd, 0))
-    | getMin {left = [], right = []} = NONE
+    | min {left = [], right = []} = NONE
 
-  fun helpGetMax (_, hd :: tl) = helpGetMax (hd, tl)
-    | helpGetMax (hd, []) =
+  fun helpMax (_, hd :: tl) = helpMax (hd, tl)
+    | helpMax (hd, []) =
         SOME (Vector.sub (hd, Vector.length hd - 1))
 
-  fun getMax {left = _, right = hd :: tl} = helpGetMax (hd, tl)
-    | getMax {left = hd :: _, right = []} =
+  fun max {left = _, right = hd :: tl} = helpMax (hd, tl)
+    | max {left = hd :: _, right = []} =
         SOME (Vector.sub (hd, Vector.length hd - 1))
-    | getMax {left = [], right = []} = NONE
+    | max {left = [], right = []} = NONE
 
   fun existsLeft (check, hd :: tl) =
         let
@@ -347,4 +346,94 @@ struct
           else existsLeft (check, left)
         end
     | [] => existsLeft (check, left)
+
+  fun removeLeft (toRemove, left, right) =
+    case left of
+      hd :: tl =>
+        let
+          val insPos = findInsPos (toRemove, hd)
+        in
+          if insPos < 0 then
+            removeLeft (toRemove, tl, joinStartOfRight (hd, right))
+          else if insPos = Vector.length hd then
+            {left = tl, right = joinStartOfRight (hd, right)}
+          else if Fn.eq (toRemove, Vector.sub (hd, insPos)) then
+            let
+              val lhd = VectorSlice.slice (hd, 0, SOME insPos)
+              val rhdLen = Vector.length hd - insPos
+              val rhd = VectorSlice.slice (hd, insPos, SOME rhdLen)
+
+              val lhd = VectorSlice.vector lhd
+              val rhd = VectorSlice.vector rhd
+            in
+              { left = joinEndOfLeft (lhd, tl)
+              , right = joinStartOfRight (rhd, right)
+              }
+            end
+          else
+            {left = tl, right = joinStartOfRight (hd, right)}
+        end
+    | [] => {left = left, right = right}
+
+  fun removeRight (toRemove, left, right) =
+    case right of
+      hd :: tl =>
+        let
+          val insPos = findInsPos (toRemove, hd)
+        in
+          if insPos = Vector.length hd then
+            removeRight (toRemove, joinEndOfLeft (hd, left), right)
+          else if insPos < 0 then
+            {left = joinEndOfLeft (hd, left), right = right}
+          else if Fn.eq (toRemove, Vector.sub (hd, insPos)) then
+            let
+              val lhd = VectorSlice.slice (hd, 0, SOME insPos)
+              val rhdLen = Vector.length hd - insPos
+              val rhd = VectorSlice.slice (hd, insPos, SOME rhdLen)
+
+              val lhd = VectorSlice.vector lhd
+              val rhd = VectorSlice.vector rhd
+            in
+              { left = joinEndOfLeft (lhd, left)
+              , right = joinStartOfRight (rhd, tl)
+              }
+            end
+          else
+            {left = joinEndOfLeft (hd, left), right = tl}
+        end
+    | [] => {left = left, right = right}
+
+  fun remove (toRemove, {left, right}) =
+    case right of
+      hd :: tl =>
+        let
+          val rfirst = Vector.sub (hd, 0)
+        in
+          if Fn.g (toRemove, rfirst) then
+            removeRight (toRemove, left, right)
+          else if Fn.l (toRemove, rfirst) then
+            removeLeft (toRemove, left, right)
+          else
+            let
+              val len = Vector.length hd - 1
+              val hd = VectorSlice.slice (hd, 1, SOME len)
+              val hd = VectorSlice.vector hd
+            in
+              {left = left, right = joinStartOfRight (hd, tl)}
+            end
+        end
+    | [] => removeLeft (toRemove, left, right)
+
+  fun helpFromList (lst, acc) =
+    case lst of
+      hd :: tl => let val acc = add (hd, acc) in helpFromList (tl, acc) end
+    | [] => acc
+
+  fun fromList lst = helpFromList (lst, empty)
+
+  fun helpToVector (hd :: tl, acc) =
+        helpToVector (tl, hd :: acc)
+    | helpToVector ([], acc) = Vector.concat acc
+
+  fun toVector {left, right} = helpToVector (left, right)
 end
