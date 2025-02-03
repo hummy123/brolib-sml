@@ -20,6 +20,7 @@ sig
 
   val add: Fn.key * t -> t
   val remove: Fn.key * t -> t
+  val removeMany: Fn.key * Fn.key * t -> t
 
   val fromList: Fn.key list -> t
   val toVector: t -> Fn.key vector
@@ -234,10 +235,10 @@ struct
     case right of
       hd :: _ =>
         let
-          val rfist = Vector.sub (hd, 0)
+          val rfirst = Vector.sub (hd, 0)
         in
-          if Fn.g (new, rfist) then insRight (new, left, right)
-          else if Fn.l (new, rfist) then insLeft (new, left, right)
+          if Fn.g (new, rfirst) then insRight (new, left, right)
+          else if Fn.l (new, rfirst) then insLeft (new, left, right)
           else {left = left, right = right}
         end
     | [] => insLeft (new, left, right)
@@ -286,16 +287,28 @@ struct
         end
     | [] => {left = left, right = right}
 
+  fun moveToWhenRightIsEmpty (to, left, right) =
+    case left of
+      hd :: _ =>
+        let
+          val llast = Vector.sub (hd, Vector.length hd - 1)
+        in
+          if Fn.l (to, llast) then moveLeft (to, left, right)
+          else {left = left, right = right}
+        end
+    | [] => {left = left, right = right}
+
   fun moveTo (to, {left, right}) =
     case right of
       hd :: _ =>
         let
-          val rfist = Vector.sub (hd, 0)
+          val rfirst = Vector.sub (hd, 0)
         in
-          if Fn.g (to, rfist) then moveRight (to, left, right)
-          else if Fn.l (to, rfist) then moveLeft (to, left, right)
+          if Fn.g (to, rfirst) then moveRight (to, left, right)
+          else if Fn.l (to, rfirst) then moveLeft (to, left, right)
           else {left = left, right = right}
         end
+    | [] => moveToWhenRightIsEmpty (to, left, right)
 
   fun helpMin (hd :: tl, prevHd) = helpMin (tl, hd)
     | helpMin ([], prevHd) =
@@ -423,6 +436,325 @@ struct
             end
         end
     | [] => removeLeft (toRemove, left, right)
+
+  fun removeRightFromHere (finish, right) =
+    case right of
+      hd :: tl =>
+        let
+          val finishPos = findInsPos (finish, hd)
+        in
+          if finishPos = Vector.length hd then
+            removeRightFromHere (finish, tl)
+          else if finishPos < 0 then
+            right
+          else
+            let
+              (* keep second half of hd / remove first part of hd *)
+              val finishPos =
+                if Fn.eq (finish, Vector.sub (hd, finishPos)) then finishPos + 1
+                else finishPos
+              val len = Vector.length hd - finishPos
+              val slice = VectorSlice.slice (hd, finishPos, SOME len)
+              val newHd = VectorSlice.vector slice
+            in
+              joinStartOfRight (newHd, tl)
+            end
+        end
+    | [] => right
+
+  fun removeLeftFromHere (start, left) =
+    case left of
+      hd :: tl =>
+        let
+          val startPos = findInsPos (start, hd)
+        in
+          if startPos < 0 then
+            removeLeftFromHere (start, tl)
+          else if startPos = Vector.length hd then
+            left
+          else
+            let
+              (* keep first half of hd / remove last part of hd *)
+              val slice = VectorSlice.slice (hd, 0, SOME startPos)
+              val newHd = VectorSlice.vector slice
+            in
+              joinEndOfLeft (newHd, tl)
+            end
+        end
+    | [] => left
+
+  fun removeManyFromHd (startPos, finish, finishPos, hd, left, right) =
+    let
+      val lhd = VectorSlice.slice (hd, 0, SOME startPos)
+
+      val rStart =
+        if Fn.eq (finish, Vector.sub (hd, finishPos)) then finishPos + 1
+        else finishPos
+      val rlen = Vector.length hd - rStart
+      val rhd = VectorSlice.slice (hd, rStart, SOME rlen)
+
+      val lhd = VectorSlice.vector lhd
+      val rhd = VectorSlice.vector rhd
+    in
+      {left = joinEndOfLeft (lhd, left), right = joinStartOfRight (rhd, right)}
+    end
+
+  fun moveLeftAndRemove (start, finish, left, right) =
+    case left of
+      hd :: tl =>
+        let
+          val finishPos = findInsPos (finish, hd)
+        in
+          if finishPos < 0 then
+            moveLeftAndRemove (start, finish, tl, joinStartOfRight (hd, right))
+          else if finishPos = Vector.length hd then
+            let
+              val startPos = findInsPos (start, hd)
+            in
+              if startPos < 0 then
+                (* remove hd and continue removing leftwards *)
+                let val left = removeLeftFromHere (start, left)
+                in {left = left, right = right}
+                end
+              else if startPos = Vector.length hd then
+                (* return, not removing anything, 
+                 * because there are no elements
+                 * between start and finish.
+                 * We do still join hd to tl if pssible for performace reasons. *)
+                {left = joinEndOfLeft (hd, tl), right = right}
+              else
+                (* have to delete from last part of hd *)
+                let
+                  val slice = VectorSlice.slice (hd, 0, SOME startPos)
+                  val newHd = VectorSlice.vector slice
+                in
+                  {left = joinEndOfLeft (newHd, tl), right = right}
+                end
+            end
+          else
+            (* finish pos is somewhere in middle of hd
+             * but have to check where startPos is. *)
+            let
+              val startPos = findInsPos (start, hd)
+            in
+              if startPos < 0 then
+                let
+                  val slice = VectorSlice.slice (hd, 0, SOME finishPos)
+                  val newHd = VectorSlice.vector slice
+                  val left = removeLeftFromHere (start, tl)
+                in
+                  {left = left, right = right}
+                end
+              else
+                (* startPos is in middle of hd.
+                 * Does not make sense for startPos = Vector.length hd
+                 * because finishPos is in middle as well. 
+                 * So, delete from middle. *)
+                removeManyFromHd (startPos, finish, finishPos, hd, tl, right)
+            end
+        end
+    | [] => {left = left, right = right}
+
+  fun moveRightAndRemove (start, finish, left, right) =
+    case right of
+      hd :: tl =>
+        let
+          val startPos = findInsPos (start, hd)
+        in
+          if startPos = Vector.length hd then
+            (* keep moving rightwards *)
+            moveRightAndRemove (start, finish, joinEndOfLeft (hd, left), tl)
+          else if startPos < 0 then
+            (* start does not exist as it is before this node.
+             * Does finish exist, and if it does, what is its position? *)
+            let
+              val finishPos = findInsPos (finish, hd)
+            in
+              if finishPos = Vector.length hd then
+                (* remove this node and delete right from here. *)
+                let val right = removeRightFromHere (finish, tl)
+                in {left = left, right = right}
+                end
+              else if finishPos < 0 then
+                (* finish is less than first element in this node,
+                 * so return. *)
+                {left = left, right = right}
+              else
+                (* have to delete first part of the hd *)
+                let
+                  val lhd = VectorSlice.slice (hd, 0, SOME startPos)
+
+                  val rStart =
+                    if Fn.eq (Vector.sub (hd, finishPos), finish) then
+                      finishPos + 1
+                    else
+                      finishPos
+                  val rLen = Vector.length hd - rStart
+                  val rhd = VectorSlice.slice (hd, rStart, SOME rLen)
+                  val lhd = VectorSlice.vector lhd
+                  val rhd = VectorSlice.vector rhd
+                in
+                  { left = joinEndOfLeft (lhd, left)
+                  , right = joinStartOfRight (rhd, right)
+                  }
+                end
+            end
+          else
+            (* have to delete starting from this node.
+             * End depends on the `finish` value. *)
+            let
+              val finishPos = findInsPos (finish, hd)
+            in
+              if finishPos = Vector.length hd then
+                (* delete last part of this node 
+                 * and continue deleting rightwards *)
+                let
+                  val hd = VectorSlice.slice (hd, 0, SOME startPos)
+                  val hd = VectorSlice.vector hd
+                  val tl = removeRightFromHere (finish, tl)
+                in
+                  {left = left, right = joinStartOfRight (hd, tl)}
+                end
+              else
+                (* we already checked and found that 
+                 * start is somewhere in the middle. 
+                 * This means `finish` must be in the middle too,
+                 * if finish is not equal to `Vector.length hd`. 
+                 * So we only need to delete some part from the middle of hd. *)
+                removeManyFromHd (startPos, finish, finishPos, hd, left, tl)
+            end
+        end
+    | [] => {left = left, right = right}
+
+  fun removeWhenStartIsLessThanRFirst (start, finish, left, right, rfirst) =
+    case left of
+      lhd :: _ =>
+        let
+          val llast = Vector.sub (lhd, Vector.length lhd - 1)
+        in
+          if Fn.l (start, llast) then
+            if Fn.g (finish, llast) then
+              (* have to delete left from here and right from here *)
+              let
+                val left = removeLeftFromHere (start, left)
+                (* removeRightFromHere will not remove anything 
+                 * if finish < rfirst *)
+                val right = removeRightFromHere (finish, right)
+              in
+                {left = left, right = right}
+              end
+            else
+              (* either finish < llast or finish = llast
+               * which means move left and delete 
+               * since finish may be before lhd *)
+              moveLeftAndRemove (start, finish, left, right)
+          else if Fn.eq (start, llast) then
+            if
+              Fn.eq (finish, llast)
+            then
+              (* just need to remove llast as both start and finish range
+               * are contained in left *)
+              let val left = removeLeftFromHere (start, left)
+              in {left = left, right = right}
+              end
+            else (* finish > llast 
+                  * as finish < llast case is impossible 
+                  * since start = llast.
+                  * Check how finish compares to rfirst. *) if
+              Fn.l (finish, rfirst)
+            then
+              (* don't do anything with finish/rfirst, 
+               * because finish is less than rfirst 
+               * but do remove llast from left
+               * because llast is equal to start *)
+              let val left = removeLeftFromHere (start, left)
+              in {left = left, right = right}
+              end
+            else
+              (* finish >= rfirst; in either case, we need to remove 
+               * some elements which are in right. *)
+              let
+                val left = removeLeftFromHere (start, left)
+                val right = removeRightFromHere (finish, right)
+              in
+                {left = left, right = right}
+              end
+          else (* start > llast *) if Fn.l (finish, rfirst) then
+            (* no elements in range between start and finish *)
+            {left = left, right = right}
+          else
+            (* whether finish > rfirst or finish = rfirst, 
+             * we have some elements to delete from the right *)
+            let val right = removeRightFromHere (finish, right)
+            in {left = left, right = right}
+            end
+        end
+    | [] => {left = left, right = right}
+
+  fun removeWhenRightIsEmpty (start, finish, left, right) =
+    case left of
+      hd :: tl =>
+        let
+          val finishPos = findInsPos (finish, hd)
+          val startPos = findInsPos (start, hd)
+        in
+          if
+            finishPos = Vector.length hd
+          then
+            if startPos = Vector.length hd then
+              {left = left, right = right}
+            else if startPos < 0 then
+              (* remove hd, and continue removing leftwards *)
+              let val left = removeLeftFromHere (start, left)
+              in {left = left, right = right}
+              end
+            else
+              (* remove last part of hd, keeping first part *)
+              let
+                val slice = VectorSlice.slice (hd, 0, SOME startPos)
+                val newHd = VectorSlice.vector slice
+              in
+                {left = tl, right = [newHd]}
+              end
+          else if
+            finishPos < 0
+          then
+            moveLeftAndRemove (start, finish, tl, [hd])
+          else (* finishPos is in middle; what about startPos? *) if
+            startPos < 0
+          then
+            moveLeftAndRemove (start, finish, left, right)
+          else
+            (* startPos is in middle because `start = Vector.length hd`
+            * is impossible, as finish is in middle already. *)
+            removeManyFromHd (startPos, finish, finishPos, hd, tl, right)
+        end
+    | [] => {left = left, right = right}
+
+  (* assumption: 'start' is the minimum element to delete and 'finish' is the
+   * last element to delete. 
+   * Reason for this assumption is because we don't ask the user for a function
+   * like `Int.min` or `Int.max` which can be used to get the minimum/maximum.
+   * So, if the user passes in a `start` that is greater than a `finish`,
+   * then that's a user error. *)
+  fun removeMany (start, finish, {left, right}) =
+    case right of
+      rhd :: _ =>
+        let
+          val rfirst = Vector.sub (rhd, 0)
+        in
+          if Fn.g (start, rfirst) then
+            (* Will need to move rightwards and delete. *)
+            moveRightAndRemove (start, finish, left, right)
+          else if Fn.eq (start, rfirst) then
+            (* need to delete right from here *)
+            let val right = removeRightFromHere (finish, right)
+            in {left = left, right = right}
+            end
+          else
+            removeWhenStartIsLessThanRFirst (start, finish, left, right, rfirst)
+        end
+    | [] => removeWhenRightIsEmpty (start, finish, left, right)
 
   fun helpFromList (lst, acc) =
     case lst of
