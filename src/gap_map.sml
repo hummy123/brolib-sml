@@ -541,4 +541,76 @@ struct
           else getLeft (check, leftKeys, leftVals)
         end
     | (_, _) => getLeft (check, leftKeys, leftVals)
+
+  fun helpMoveToStart (leftKeys, leftVals, rightKeys, rightVals) =
+    case (leftKeys, leftVals) of
+      (lkhd :: lktl, lvhd :: lvtl) =>
+        (case (rightKeys, rightVals) of
+           (rkhd :: rktl, rvhd :: rvtl) =>
+             if isLessThanTarget (lkhd, rvhd) then
+               let
+                 val rightKeys = Vector.concat [lkhd, rkhd] :: rktl
+                 val rightVals = Vector.concat [lvhd, rvhd] :: rvtl
+               in
+                 helpMoveToStart (lktl, lvtl, rightKeys, rightVals)
+               end
+             else
+               let
+                 val rightKeys = lkhd :: rightKeys
+                 val rightVals = lvhd :: rightVals
+               in
+                 helpMoveToStart (lktl, lvtl, rightKeys, rightVals)
+               end
+         | (_, _) =>
+             let
+               val rightKeys = lkhd :: rightKeys
+               val rightVals = lvhd :: rightVals
+             in
+               helpMoveToStart (lktl, lvtl, rightKeys, rightVals)
+             end)
+    | (_, _) =>
+        { leftKeys = leftKeys
+        , leftVals = leftVals
+        , rightKeys = rightKeys
+        , rightVals = rightVals
+        }
+
+  fun moveToStart {leftKeys, leftVals, rightKeys, rightVals} =
+    helpMoveToStart (leftKeys, leftVals, rightKeys, rightVals)
+
+  fun helpMoveToEnd (leftKeys, leftVals, rightKeys, rightVals) =
+    case (rightKeys, rightVals) of
+      (rkhd :: rktl, rvhd :: rvtl) =>
+        (case (leftKeys, leftVals) of
+           (lkhd :: lktl, lvhd :: lvtl) =>
+             if isLessThanTarget (lkhd, rkhd) then
+               let
+                 val leftKeys = Vector.concat [lkhd, rkhd] :: leftKeys
+                 val leftVals = Vector.concat [lvhd, rvhd] :: leftVals
+               in
+                 helpMoveToEnd (leftKeys, leftVals, rktl, rvtl)
+               end
+             else
+               let
+                 val leftKeys = rkhd :: leftKeys
+                 val leftVals = rvhd :: leftVals
+               in
+                 helpMoveToEnd (leftKeys, leftVals, rktl, rvtl)
+               end
+         | (_, _) =>
+             let
+               val leftKeys = rkhd :: leftKeys
+               val leftVals = rvhd :: leftVals
+             in
+               helpMoveToEnd (leftKeys, leftVals, rktl, rvtl)
+             end)
+    | (_, _) =>
+        { leftKeys = leftKeys
+        , leftVals = leftVals
+        , rightKeys = rightKeys
+        , rightVals = rightVals
+        }
+
+  fun moveToEnd {leftKeys, leftVals, rightKeys, rightVals} =
+    helpMoveToEnd (leftKeys, leftVals, rightKeys, rightVals)
 end
