@@ -18,6 +18,8 @@ sig
   val empty: t
   val isEmpty: t -> bool
 
+  val singleton: Fn.key -> t
+
   val add: Fn.key * t -> t
   val remove: Fn.key * t -> t
   val removeMany: Fn.key * Fn.key * t -> t
@@ -46,7 +48,7 @@ struct
     | isEmpty _ = false
 
   fun singleton x =
-    {left = [], right = Vector.fromList [x]}
+    {left = [], right = [Vector.fromList [x]]}
 
   fun isLessThanTarget (v1, v2) =
     Vector.length v1 + Vector.length v2 <= Fn.maxNodeSize
