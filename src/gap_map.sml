@@ -23,8 +23,6 @@ sig
   val remove: Fn.key * t -> t
 
   val get: Fn.key * t -> Fn.value option
-  val min: t -> (Fn.key * Fn.value) option
-  val max: t -> (Fn.key * Fn.value) option
 
   val moveToStart: t -> t
   val moveToEnd: t -> t
@@ -217,7 +215,7 @@ struct
                 { leftKeys = leftKeys
                 , leftVals = leftVals
                 , rightKeys = rightKeys
-                , rightVals = rightKeys
+                , rightVals = rightVals
                 }
               end
             else
@@ -228,14 +226,14 @@ struct
                 { leftKeys = leftKeys
                 , leftVals = leftVals
                 , rightKeys = rightKeys
-                , rightVals = rightKeys
+                , rightVals = rightVals
                 }
               end
           end
         else
           let
             val leftKeys = VectorSlice.vector lkhd :: leftKeys
-            val leftVals = VectorSlice.vector rvhd :: leftVals
+            val leftVals = VectorSlice.vector lvhd :: leftVals
           in
             if isSliceLessThanTarget (rkhd, p_rkhd) then
               let
@@ -247,7 +245,7 @@ struct
                 { leftKeys = leftKeys
                 , leftVals = leftVals
                 , rightKeys = rightKeys
-                , rightVals = rightKeys
+                , rightVals = rightVals
                 }
               end
             else
@@ -258,7 +256,7 @@ struct
                 { leftKeys = leftKeys
                 , leftVals = leftVals
                 , rightKeys = rightKeys
-                , rightVals = rightKeys
+                , rightVals = rightVals
                 }
               end
           end
@@ -302,7 +300,7 @@ struct
         val rkhd = VectorSlice.full rkhd
 
         val newVal = Vector.fromList [newVal]
-        val rvhd = VectorSlice.concat [VectorSlice.full newVal, rkhd]
+        val rvhd = VectorSlice.concat [VectorSlice.full newVal, rvhd]
         val rvhd = VectorSlice.full rvhd
       in
         (* join both slices *)
@@ -492,34 +490,55 @@ struct
         end
     | [] => insLeft (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
 
-  fun helpMin (leftVals, prevVals) =
-    case leftVals of
-      hd :: tl => helpMin (tl, hd)
-    | [] => SOME (Vector.sub (prevVals, 0))
-
-  fun min ({leftVals = lhd :: ltl, ...}: t) = helpMin (ltl, lhd)
-    | min ({rightVals = rhd :: _, ...}) =
-        SOME (Vector.sub (rhd, 0))
-    | min _ = NONE
-
-  fun helpMax (rightVals, prevVal) =
-    case rightVals of
-      hd :: tl => helpMax (tl, hd)
-    | [] =>
+  fun getLeft (check, leftKeys, leftVals) =
+    case (leftKeys, leftVals) of
+      (lkhd :: lktl, lvhd :: lvtl) =>
         let
-          val lastIdx = Vector.length prevVal - 1
-          val last = Vector.sub (prevVal, lastIdx)
+          val pos = findInsPos (check, lkhd)
         in
-          SOME last
+          if pos < 0 then
+            getLeft (check, lktl, lvtl)
+          else if pos = Vector.length lkhd then
+            NONE
+          else
+            let
+              val posEl = Vector.sub (lkhd, pos)
+            in
+              if Fn.eq (check, posEl) then SOME (Vector.sub (lvhd, pos))
+              else NONE
+            end
         end
+    | (_, _) => NONE
 
-  fun max ({rightVals = rhd :: rtl, ...}: t) = helpMax (rtl, rhd)
-    | max ({leftVals = lhd :: _, ...}) =
+  fun getRight (check, rightKeys, rightVals) =
+    case (rightKeys, rightVals) of
+      (rkhd :: rktl, rvhd :: rvtl) =>
         let
-          val lastIdx = Vector.length lhd - 1
-          val last = Vector.sub (lhd, lastIdx)
+          val pos = findInsPos (check, rkhd)
         in
-          SOME last
+          if pos = Vector.length rkhd then
+            getRight (check, rktl, rvtl)
+          else if pos < 0 then
+            NONE
+          else
+            let
+              val posEl = Vector.sub (rkhd, pos)
+            in
+              if Fn.eq (check, posEl) then SOME (Vector.sub (rvhd, pos))
+              else NONE
+            end
         end
-    | max _ = NONE
+    | (_, _) => NONE
+
+  fun get (check, {leftKeys, leftVals, rightKeys, rightVals}) =
+    case (rightKeys, rightVals) of
+      (rkhd :: _, rvhd :: _) =>
+        let
+          val first = Vector.sub (rkhd, 0)
+        in
+          if Fn.g (check, first) then getRight (check, rightKeys, rightVals)
+          else if Fn.eq (check, first) then SOME (Vector.sub (rvhd, 0))
+          else getLeft (check, leftKeys, leftVals)
+        end
+    | (_, _) => getLeft (check, leftKeys, leftVals)
 end
