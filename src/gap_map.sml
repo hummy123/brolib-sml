@@ -477,4 +477,20 @@ struct
           tryJoinMaxSide
             (hdKeys, hdVals, leftKeys, leftVals, rightKeys, rightVals)
         end
+
+  fun add (newKey, newVal, map as {leftKeys, leftVals, rightKeys, rightVals}: t) =
+    (* look at elements to see which way to traverse *)
+    case rightKeys of
+      hd :: _ =>
+        let
+          val rfirst = Vector.sub (hd, 0)
+        in
+          if Fn.g (new, rfirst) then 
+            insRight (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
+          else if Fn.l (new, rfirst) then 
+            insLeft (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
+          else 
+            map
+        end
+    | [] => insLeft (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
 end
