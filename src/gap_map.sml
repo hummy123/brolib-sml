@@ -399,4 +399,82 @@ struct
           tryJoinStartOfRight
             (hdKeys, hdVals, leftKeys, leftVals, rightKeys, rightVals)
         end
+
+  fun insRight (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals) =
+    case (rightKeys, rightVals) of
+      (rkhd :: rktl, rvhd :: rvtl) =>
+        let
+          val insPos = findInsPos (newKey, rkhd)
+        in
+          if insPos = Vector.length rkhd then
+            (* move right, joining if possible while staying under maxNodeSize *)
+            (case (leftKeys, leftVals) of
+               (lkhd :: lktl, lvhd :: lvtl) =>
+                 if isLessThanTarget (lkhd, rkhd) then
+                   let
+                     val leftKeys = Vector.concat [lkhd, rkhd] :: lktl
+                     val leftVals = Vector.concat [lvhd, rvhd] :: lvtl
+                   in
+                     insRight (newKey, newVal, leftKeys, leftVals, rktl, rvtl)
+                   end
+                 else
+                   let
+                     val leftKeys = rkhd :: leftKeys
+                     val leftVals = rvhd :: leftVals
+                   in
+                     insRight (newKey, newVal, leftKeys, leftVals, rktl, rvtl)
+                   end
+             | (_, _) =>
+                 let
+                   val leftKeys = rkhd :: leftKeys
+                   val leftVals = rvhd :: leftVals
+                 in
+                   insRight (newKey, newVal, leftKeys, leftVals, rktl, rvtl)
+                 end)
+          else if insPos < 0 then
+            (* insert at start *)
+            if Vector.length rkhd + 1 > Fn.maxNodeSize then
+              let
+                (* hd is full so split *)
+                val hdKeys = Vector.fromList [newKey]
+                val hdVals = Vector.fromList [newVal]
+              in
+                tryJoinMaxSide
+                  (hdKeys, hdVals, leftKeys, leftVals, rightKeys, rightVals)
+              end
+            else
+              let
+                (* join to start without splitting *)
+                val rightKeys =
+                  Vector.concat [Vector.fromList [newKey], rkhd] :: rktl
+                val rightVals =
+                  Vector.concat [Vector.fromList [newVal], rvhd] :: rvtl
+              in
+                { leftKeys = leftKeys
+                , leftVals = leftVals
+                , rightKeys = rightKeys
+                , rightVals = rightVals
+                }
+              end
+          else
+            insMiddle
+              ( rkhd
+              , rvhd
+              , insPos
+              , newKey
+              , newVal
+              , leftKeys
+              , leftVals
+              , rktl
+              , rvtl
+              )
+        end
+    | (_, _) =>
+        let
+          val hdKeys = Vector.fromList [newKey]
+          val hdVals = Vector.fromList [newVal]
+        in
+          tryJoinMaxSide
+            (hdKeys, hdVals, leftKeys, leftVals, rightKeys, rightVals)
+        end
 end
