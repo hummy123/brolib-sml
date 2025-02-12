@@ -478,19 +478,48 @@ struct
             (hdKeys, hdVals, leftKeys, leftVals, rightKeys, rightVals)
         end
 
-  fun add (newKey, newVal, map as {leftKeys, leftVals, rightKeys, rightVals}: t) =
+  fun add (newKey, newVal, {leftKeys, leftVals, rightKeys, rightVals}) =
     (* look at elements to see which way to traverse *)
     case rightKeys of
       hd :: _ =>
         let
           val rfirst = Vector.sub (hd, 0)
         in
-          if Fn.g (new, rfirst) then
-            insRight (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
-          else if Fn.l (new, rfirst) then
+          if Fn.l (newKey, rfirst) then
             insLeft (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
           else
-            map
+            insRight (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
         end
     | [] => insLeft (newKey, newVal, leftKeys, leftVals, rightKeys, rightVals)
+
+  fun helpMin (leftVals, prevVals) =
+    case leftVals of
+      hd :: tl => helpMin (tl, hd)
+    | [] => SOME (Vector.sub (prevVals, 0))
+
+  fun min ({leftVals = lhd :: ltl, ...}: t) = helpMin (ltl, lhd)
+    | min ({rightVals = rhd :: _, ...}) =
+        SOME (Vector.sub (rhd, 0))
+    | min _ = NONE
+
+  fun helpMax (rightVals, prevVal) =
+    case rightVals of
+      hd :: tl => helpMax (tl, hd)
+    | [] =>
+        let
+          val lastIdx = Vector.length prevVal - 1
+          val last = Vector.sub (prevVal, lastIdx)
+        in
+          SOME last
+        end
+
+  fun max ({rightVals = rhd :: rtl, ...}: t) = helpMax (rtl, rhd)
+    | max ({leftVals = lhd :: _, ...}) =
+        let
+          val lastIdx = Vector.length lhd - 1
+          val last = Vector.sub (lhd, lastIdx)
+        in
+          SOME last
+        end
+    | max _ = NONE
 end
