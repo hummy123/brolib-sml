@@ -37,6 +37,71 @@ sig
   val moveTo: Fn.key * t -> t
 end
 
+signature GAP_MAP_FOLDER =
+sig
+  structure Pair: GAP_MAP_PAIR
+  type env
+  type state
+  val fold: Pair.key * Pair.value * env * state -> state
+end
+
+signature MAKE_GAP_MAP_FOLDER =
+sig
+  structure Pair: GAP_MAP_PAIR
+  structure Folder: GAP_MAP_FOLDER
+
+  type env = Folder.env
+  type state = Folder.state
+
+  type t =
+    { leftKeys: Pair.key vector list
+    , leftVals: Pair.value vector list
+    , rightKeys: Pair.key vector list
+    , rightVals: Pair.value vector list
+    }
+
+  val foldUnordered: t * env * state -> state
+end
+
+functor MakeGapMapFolder(Folder: GAP_MAP_FOLDER): MAKE_GAP_MAP_FOLDER =
+struct
+  structure Pair = Folder.Pair
+  structure Folder = Folder
+
+  type env = Folder.env
+  type state = Folder.state
+
+  type t =
+    { leftKeys: Pair.key vector list
+    , leftVals: Pair.value vector list
+    , rightKeys: Pair.key vector list
+    , rightVals: Pair.value vector list
+    }
+
+  fun foldVecUnordered (pos, keys, values, env, state) =
+    if pos = Vector.length keys then
+      state
+    else
+      let
+        val key = Vector.sub (keys, pos)
+        val value = Vector.sub (values, pos)
+        val state = Folder.fold (key, value, env, state)
+      in
+        foldVecUnordered (pos + 1, keys, values, env, state)
+      end
+
+  fun foldListUnodered (khd :: ktl, vhd :: vtl, env, state) =
+        let val state = foldVecUnordered (0, khd, vhd, env, state)
+        in foldListUnodered (ktl, vtl, env, state)
+        end
+    | foldListUnodered (_, _, _, state) = state
+
+  fun foldUnordered ({leftKeys, leftVals, rightKeys, rightVals}, env, state) =
+    let val state = foldListUnodered (leftKeys, leftVals, env, state)
+    in foldListUnodered (rightKeys, rightVals, env, state)
+    end
+end
+
 signature MAP =
 sig
   structure Pair: GAP_MAP_PAIR
