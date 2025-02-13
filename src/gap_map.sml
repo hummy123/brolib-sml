@@ -46,6 +46,7 @@ end
 
 signature MAPPER =
 sig
+  structure Map: MAP
   structure Pair: GAP_MAP_PAIR
 
   type t =
@@ -55,11 +56,12 @@ sig
     , rightVals: Pair.value vector list
     }
 
-  val map: t -> t
+  val map: t * Map.env -> t
 end
 
 functor MakeGapMapMapper(Map: MAP): MAPPER =
 struct
+  structure Map = Map
   structure Pair = Map.Pair
 
   type t =
