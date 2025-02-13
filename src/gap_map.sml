@@ -14,7 +14,15 @@ signature GAP_MAP =
 sig
   structure Fn: GAP_MAP_PAIR
 
-  type t
+  type key = Fn.key
+  type value = Fn.value
+
+  type t =
+    { leftKeys: Fn.key vector list
+    , leftVals: Fn.value vector list
+    , rightKeys: Fn.key vector list
+    , rightVals: Fn.value vector list
+    }
 
   val empty: t
   val isEmpty: t -> bool
@@ -29,9 +37,62 @@ sig
   val moveTo: Fn.key * t -> t
 end
 
+signature MAP =
+sig
+  structure Pair: GAP_MAP_PAIR
+  val map: Pair.value -> Pair.value
+end
+
+signature MAPPER =
+sig
+  structure Pair: GAP_MAP_PAIR
+
+  type t =
+    { leftKeys: Pair.key vector list
+    , leftVals: Pair.value vector list
+    , rightKeys: Pair.key vector list
+    , rightVals: Pair.value vector list
+    }
+
+  val map: t -> t
+end
+
+functor MakeGapMapMapper(Map: MAP): MAPPER =
+struct
+  structure Pair = Map.Pair
+
+  type t =
+    { leftKeys: Pair.key vector list
+    , leftVals: Pair.value vector list
+    , rightKeys: Pair.key vector list
+    , rightVals: Pair.value vector list
+    }
+
+  fun mapList (hd :: tl, acc) =
+        let val hd = Vector.map Map.map hd
+        in mapList (tl, hd :: acc)
+        end
+    | mapList ([], acc) = List.rev acc
+
+  fun map ({leftKeys, leftVals, rightKeys, rightVals}: t) : t =
+    let
+      val leftVals = mapList (leftVals, [])
+      val rightVals = mapList (rightVals, [])
+    in
+      { leftKeys = leftKeys
+      , leftVals = leftVals
+      , rightKeys = rightKeys
+      , rightVals = rightVals
+      }
+    end
+end
+
 functor MakeGapMap(Fn: GAP_MAP_PAIR): GAP_MAP =
 struct
   structure Fn = Fn
+
+  type key = Fn.key
+  type value = Fn.value
 
   type t =
     { leftKeys: Fn.key vector list
@@ -260,6 +321,24 @@ struct
                 }
               end
           end
+    | _ =>
+        let
+          val lkhd = VectorSlice.vector lkhd
+          val rkhd = VectorSlice.vector rkhd
+          val lvhd = VectorSlice.vector lvhd
+          val rvhd = VectorSlice.vector rvhd
+
+          val leftKeys = lkhd :: leftKeys
+          val leftVals = lvhd :: leftVals
+          val rightKeys = rkhd :: rightKeys
+          val rightVals = rvhd :: rightVals
+        in
+          { leftKeys = leftKeys
+          , leftVals = leftVals
+          , rightKeys = rightKeys
+          , rightVals = rightVals
+          }
+        end
 
   fun insMiddle
     ( hdKeys
@@ -864,3 +943,26 @@ struct
         end
     | _ => removeLeft (toRemove, leftKeys, leftVals, rightKeys, rightVals)
 end
+
+(* example usage of functor to map over GapMap:
+structure Pair =
+struct
+  type key = int
+  type value = int
+
+  fun l (a: int, b: int) = a < b
+  fun eq (a: int, b: int) = a = b
+  fun g (a: int, b: int) = a > b
+
+  val maxNodeSize = 1024
+end
+
+structure IntPair = MakeGapMap(Pair)
+
+structure IntMap =
+  MakeGapMapMapper
+    (struct
+       structure Pair = Pair
+       fun map x = x * 5
+     end)
+*)
