@@ -40,7 +40,8 @@ end
 signature MAP =
 sig
   structure Pair: GAP_MAP_PAIR
-  val map: Pair.value -> Pair.value
+  type env
+  val map: Pair.value * env -> Pair.value
 end
 
 signature MAPPER =
@@ -963,6 +964,7 @@ structure IntMap =
   MakeGapMapMapper
     (struct
        structure Pair = Pair
-       fun map x = x * 5
+       type env = ()
+       fun map x () = x * 5
      end)
 *)
