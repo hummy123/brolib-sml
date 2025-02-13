@@ -69,16 +69,16 @@ struct
     , rightVals: Pair.value vector list
     }
 
-  fun mapList (hd :: tl, acc) =
-        let val hd = Vector.map Map.map hd
+  fun mapList (hd :: tl, acc, env) =
+        let val hd = Vector.map (fn el => Map.map (el, env)) hd
         in mapList (tl, hd :: acc)
         end
-    | mapList ([], acc) = List.rev acc
+    | mapList ([], acc, env) = List.rev acc
 
-  fun map ({leftKeys, leftVals, rightKeys, rightVals}: t) : t =
+  fun map ({leftKeys, leftVals, rightKeys, rightVals}: t, env) : t =
     let
-      val leftVals = mapList (leftVals, [])
-      val rightVals = mapList (rightVals, [])
+      val leftVals = mapList (leftVals, [], env)
+      val rightVals = mapList (rightVals, [], env)
     in
       { leftKeys = leftKeys
       , leftVals = leftVals
@@ -943,28 +943,26 @@ struct
             removeRight (toRemove, leftKeys, leftVals, rightKeys, rightVals)
         end
     | _ => removeLeft (toRemove, leftKeys, leftVals, rightKeys, rightVals)
-end
-
-(* example usage of functor to map over GapMap:
-structure Pair =
-struct
-  type key = int
-  type value = int
-
-  fun l (a: int, b: int) = a < b
-  fun eq (a: int, b: int) = a = b
-  fun g (a: int, b: int) = a > b
-
-  val maxNodeSize = 1024
-end
-
-structure IntPair = MakeGapMap(Pair)
-
-structure IntMap =
-  MakeGapMapMapper
-    (struct
-       structure Pair = Pair
-       type env = ()
-       fun map x () = x * 5
-     end)
-*)
+end (* example usage of functor to map over GapMap:
+    structure Pair =
+    struct
+      type key = int
+      type value = int
+    
+      fun l (a: int, b: int) = a < b
+      fun eq (a: int, b: int) = a = b
+      fun g (a: int, b: int) = a > b
+    
+      val maxNodeSize = 1024
+    end
+    
+    structure IntPair = MakeGapMap(Pair)
+    
+    structure IntMap =
+      MakeGapMapMapper
+        (struct
+           structure Pair = Pair
+           type env = ()
+           fun map x () = x * 5
+         end)
+    *)
