@@ -728,4 +728,139 @@ struct
             moveRight (to, leftKeys, leftVals, rightKeys, rightVals)
         end
     | [] => moveToWhenRightIsEmpty (to, map)
+
+  fun removeMiddle (khd, vhd, insPos, leftKeys, leftVals, rightKeys, rightVals) =
+    let
+      val rLen = Vector.length khd - insPos
+      val lkhd = VectorSlice.slice (khd, 0, SOME insPos)
+      val rkhd = VectorSlice.slice (khd, insPos, SOME rLen)
+
+      val lvhd = VectorSlice.slice (vhd, 0, SOME insPos)
+      val rvhd = VectorSlice.slice (vhd, insPos, SOME rLen)
+
+      val khd = VectorSlice.concat [lkhd, rkhd]
+      val vhd = VectorSlice.concat [lvhd, rvhd]
+    in
+      tryJoinMaxSide (khd, vhd, leftKeys, leftVals, rightKeys, rightVals)
+    end
+
+  fun removeLeft (toRemove, leftKeys, leftVals, rightKeys, rightVals) =
+    case (leftKeys, leftVals) of
+      (lkhd :: lktl, lvhd :: lvtl) =>
+        let
+          val insPos = findInsPos (toRemove, lkhd)
+        in
+          if insPos < 0 then
+            (* keep moving left, joining if possible *)
+            (case (rightKeys, rightVals) of
+               (rkhd :: rktl, rvhd :: rvtl) =>
+                 if isLessThanTarget (lkhd, rkhd) then
+                   let
+                     val rightKeys = Vector.concat [lkhd, rkhd] :: rktl
+                     val rightVals = Vector.concat [lvhd, rvhd] :: rvtl
+                   in
+                     removeLeft (toRemove, lktl, lvtl, rightKeys, rightVals)
+                   end
+                 else
+                   let
+                     val rightKeys = lkhd :: rightKeys
+                     val rightVals = lvhd :: rightVals
+                   in
+                     removeLeft (toRemove, lktl, lvtl, rightKeys, rightVals)
+                   end
+             | (_, _) =>
+                 let
+                   val rightKeys = lkhd :: rightKeys
+                   val rightVals = lvhd :: rightVals
+                 in
+                   removeLeft (toRemove, lktl, lvtl, rightKeys, rightVals)
+                 end)
+          else if insPos = Vector.length lkhd then
+            { leftKeys = leftKeys
+            , leftVals = leftVals
+            , rightKeys = rightKeys
+            , rightVals = rightVals
+            }
+          else if Fn.eq (toRemove, Vector.sub (lkhd, insPos)) then
+            (* found key so remove key/value pair *)
+            removeMiddle (lkhd, lvhd, insPos, lktl, lvtl, rightKeys, rightVals)
+          else
+            (* not found so just return *)
+            { leftKeys = leftKeys
+            , leftVals = leftVals
+            , rightKeys = rightKeys
+            , rightVals = rightVals
+            }
+        end
+    | (_, _) =>
+        { leftKeys = leftKeys
+        , leftVals = leftVals
+        , rightKeys = rightKeys
+        , rightVals = rightVals
+        }
+
+  fun removeRight (toRemove, leftKeys, leftVals, rightKeys, rightVals) =
+    case (rightKeys, rightVals) of
+      (rkhd :: rktl, rvhd :: rvtl) =>
+        let
+          val insPos = findInsPos (toRemove, rkhd)
+        in
+          if insPos = Vector.length rkhd then
+            (case (leftKeys, leftVals) of
+               (lkhd :: lktl, lvhd :: lvtl) =>
+                 if isLessThanTarget (lkhd, rkhd) then
+                   let
+                     val leftKeys = Vector.concat [lkhd, rkhd] :: lktl
+                     val leftVals = Vector.concat [lvhd, rvhd] :: lvtl
+                   in
+                     removeRight (toRemove, leftKeys, leftVals, rktl, rvtl)
+                   end
+                 else
+                   let
+                     val leftKeys = rkhd :: leftKeys
+                     val leftVals = rvhd :: leftVals
+                   in
+                     removeRight (toRemove, leftKeys, leftVals, rktl, rvtl)
+                   end
+             | (_, _) =>
+                 let
+                   val leftKeys = rkhd :: leftKeys
+                   val leftVals = rvhd :: leftVals
+                 in
+                   removeRight (toRemove, leftKeys, leftVals, rktl, rvtl)
+                 end)
+          else if insPos < 0 then
+            { leftKeys = leftKeys
+            , leftVals = leftVals
+            , rightKeys = rightKeys
+            , rightVals = rightVals
+            }
+          else if Fn.eq (toRemove, Vector.sub (rkhd, insPos)) then
+            removeMiddle (rkhd, rvhd, insPos, leftKeys, leftVals, rktl, rvtl)
+          else
+            { leftKeys = leftKeys
+            , leftVals = leftVals
+            , rightKeys = rightKeys
+            , rightVals = rightVals
+            }
+        end
+    | (_, _) =>
+        { leftKeys = leftKeys
+        , leftVals = leftVals
+        , rightKeys = rightKeys
+        , rightVals = rightVals
+        }
+
+  fun remove (toRemove, {leftKeys, leftVals, rightKeys, rightVals}) =
+    case rightKeys of
+      hd :: _ =>
+        let
+          val rfirst = Vector.sub (hd, 0)
+        in
+          if Fn.l (toRemove, rfirst) then
+            removeLeft (toRemove, leftKeys, leftVals, rightKeys, rightVals)
+          else
+            removeRight (toRemove, leftKeys, leftVals, rightKeys, rightVals)
+        end
+    | _ => removeLeft (toRemove, leftKeys, leftVals, rightKeys, rightVals)
 end
