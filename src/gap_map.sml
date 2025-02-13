@@ -613,4 +613,119 @@ struct
 
   fun moveToEnd {leftKeys, leftVals, rightKeys, rightVals} =
     helpMoveToEnd (leftKeys, leftVals, rightKeys, rightVals)
+
+  fun moveLeft (to, leftKeys, leftVals, rightKeys, rightVals) =
+    case (leftKeys, leftVals) of
+      (lkhd :: lktl, lvhd :: lvtl) =>
+        let
+          val first = Vector.sub (lkhd, 0)
+        in
+          if Fn.l (to, first) then
+            (case (rightKeys, rightVals) of
+               (rkhd :: rktl, rvhd :: rvtl) =>
+                 if isLessThanTarget (lkhd, rkhd) then
+                   let
+                     val rightKeys = Vector.concat [lkhd, rkhd] :: rktl
+                     val rightVals = Vector.concat [lvhd, rvhd] :: rvtl
+                   in
+                     moveLeft (to, lktl, lvtl, rightKeys, rightVals)
+                   end
+                 else
+                   let
+                     val rightKeys = lkhd :: rightKeys
+                     val rightVals = lvhd :: rightVals
+                   in
+                     moveLeft (to, lktl, lvtl, rightKeys, rightVals)
+                   end
+             | (_, _) =>
+                 let
+                   val rightKeys = lkhd :: rightKeys
+                   val rightVals = lvhd :: rightVals
+                 in
+                   moveLeft (to, lktl, lvtl, rightKeys, rightVals)
+                 end)
+          else
+            { leftKeys = leftKeys
+            , leftVals = leftVals
+            , rightKeys = rightKeys
+            , rightVals = rightVals
+            }
+        end
+    | (_, _) =>
+        { leftKeys = leftKeys
+        , leftVals = leftVals
+        , rightKeys = rightKeys
+        , rightVals = rightVals
+        }
+
+  fun moveRight (to, leftKeys, leftVals, rightKeys, rightVals) =
+    case (rightKeys, rightVals) of
+      (rkhd :: rktl, rvhd :: rvtl) =>
+        let
+          val last = Vector.sub (rkhd, Vector.length rkhd - 1)
+        in
+          if Fn.g (to, last) then
+            (case (leftKeys, leftVals) of
+               (lkhd :: lktl, lvhd :: lvtl) =>
+                 if isLessThanTarget (lkhd, rkhd) then
+                   let
+                     val leftKeys = Vector.concat [lkhd, rkhd] :: lktl
+                     val leftVals = Vector.concat [lvhd, rvhd] :: lvtl
+                   in
+                     moveRight (to, leftKeys, leftVals, rktl, rvtl)
+                   end
+                 else
+                   let
+                     val leftKeys = rkhd :: leftKeys
+                     val leftVals = rvhd :: leftVals
+                   in
+                     moveRight (to, leftKeys, leftVals, rktl, rvtl)
+                   end
+             | (_, _) =>
+                 let
+                   val leftKeys = rkhd :: leftKeys
+                   val leftVals = rvhd :: leftVals
+                 in
+                   moveRight (to, leftKeys, leftVals, rktl, rvtl)
+                 end)
+          else
+            { leftKeys = leftKeys
+            , leftVals = leftVals
+            , rightKeys = rightKeys
+            , rightVals = rightVals
+            }
+        end
+    | (_, _) =>
+        { leftKeys = leftKeys
+        , leftVals = leftVals
+        , rightKeys = rightKeys
+        , rightVals = rightVals
+        }
+
+  fun moveToWhenRightIsEmpty
+    (to, map as {leftKeys, leftVals, rightKeys, rightVals}) =
+    case leftKeys of
+      hd :: _ =>
+        let
+          val llast = Vector.sub (hd, Vector.length hd - 1)
+        in
+          if Fn.l (to, llast) then
+            moveLeft (to, leftKeys, leftVals, rightKeys, rightVals)
+          else
+            map
+        end
+    | [] => map
+
+  fun moveTo (to, map as {leftKeys, leftVals, rightKeys, rightVals}) =
+    case rightKeys of
+      hd :: _ =>
+        let
+          val rfirst = Vector.sub (hd, 0)
+        in
+          if Fn.l (to, rfirst) then
+            moveLeft (to, leftKeys, leftVals, rightKeys, rightVals)
+          else
+            moveRight (to, leftKeys, leftVals, rightKeys, rightVals)
+        end
+    | [] => moveToWhenRightIsEmpty (to, map)
 end
