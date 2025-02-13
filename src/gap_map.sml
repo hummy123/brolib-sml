@@ -71,7 +71,7 @@ struct
 
   fun mapList (hd :: tl, acc, env) =
         let val hd = Vector.map (fn el => Map.map (el, env)) hd
-        in mapList (tl, hd :: acc)
+        in mapList (tl, hd :: acc, env)
         end
     | mapList ([], acc, env) = List.rev acc
 
