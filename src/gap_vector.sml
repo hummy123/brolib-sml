@@ -21,8 +21,10 @@ sig
   val deleteMany: int * int * t -> t
 end
 
-functor MakeGapVector(Fn: GAP_VECTOR_INPUT) =
+functor MakeGapVector(Fn: GAP_VECTOR_INPUT): GAP_VECTOR =
 struct
+  structure Fn = Fn
+
   type t = {idx: int, left: Fn.elem vector list, right: Fn.elem vector list}
 
   val empty = {idx = 0, left = [], right = []}
@@ -280,8 +282,11 @@ struct
               insRight (nextIdx, idx, newVector, curIdx, left, hd, tail)
           end
 
-  fun insert (idx, newVector, buffer: t) =
+  fun insertMany (idx, newVector, buffer: t) =
     ins (idx, newVector, #idx buffer, #left buffer, #right buffer)
+
+  fun insert (idx, elem, buffer) =
+    insertMany (idx, Vector.fromList [elem], buffer)
 
   fun deleteRightFromHere (curIdx, finish, right) =
     case right of
@@ -497,7 +502,7 @@ struct
       , right = deleteRightFromHere (curIdx, finish, right)
       }
 
-  fun delete (start, length, buffer: t) =
+  fun deleteMany (start, length, buffer: t) =
     if length > 0 then
       del (start, start + length, #idx buffer, #left buffer, #right buffer)
     else
