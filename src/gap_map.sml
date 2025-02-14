@@ -878,12 +878,14 @@ struct
 
   fun removeMiddle (khd, vhd, insPos, leftKeys, leftVals, rightKeys, rightVals) =
     let
-      val rLen = Vector.length khd - insPos
+      val rStart = insPos + 1
+      val rLen = Vector.length khd - rStart
+
       val lkhd = VectorSlice.slice (khd, 0, SOME insPos)
-      val rkhd = VectorSlice.slice (khd, insPos, SOME rLen)
+      val rkhd = VectorSlice.slice (khd, rStart, SOME rLen)
 
       val lvhd = VectorSlice.slice (vhd, 0, SOME insPos)
-      val rvhd = VectorSlice.slice (vhd, insPos, SOME rLen)
+      val rvhd = VectorSlice.slice (vhd, rStart, SOME rLen)
 
       val khd = VectorSlice.concat [lkhd, rkhd]
       val vhd = VectorSlice.concat [lvhd, rvhd]
