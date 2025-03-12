@@ -1,7 +1,6 @@
 signature GAP_MAP_PAIR =
 sig
   type key
-  type value
 
   val l: key * key -> bool
   val eq: key * key -> bool
@@ -15,26 +14,25 @@ sig
   structure Fn: GAP_MAP_PAIR
 
   type key = Fn.key
-  type value = Fn.value
 
-  type t =
+  type 'value t =
     { leftKeys: Fn.key vector list
-    , leftVals: Fn.value vector list
+    , leftVals: 'value vector list
     , rightKeys: Fn.key vector list
-    , rightVals: Fn.value vector list
+    , rightVals: 'value vector list
     }
 
-  val empty: t
-  val isEmpty: t -> bool
+  val empty: 'value t
+  val isEmpty: 'value t -> bool
 
-  val add: Fn.key * Fn.value * t -> t
-  val remove: Fn.key * t -> t
+  val add: Fn.key * 'value * 'value t -> 'value t
+  val remove: Fn.key * 'value t -> 'value t
 
-  val get: Fn.key * t -> Fn.value option
+  val get: Fn.key * 'value t -> 'value option
 
-  val moveToStart: t -> t
-  val moveToEnd: t -> t
-  val moveTo: Fn.key * t -> t
+  val moveToStart: 'value t -> 'value t
+  val moveToEnd: 'value t -> 'value t
+  val moveTo: Fn.key * 'value t -> 'value t
 end
 
 signature GAP_MAP_FOLDER =
@@ -42,7 +40,7 @@ sig
   structure Pair: GAP_MAP_PAIR
   type env
   type state
-  val fold: Pair.key * Pair.value * env * state -> state
+  val fold: Pair.key * 'value * env * state -> state
 end
 
 signature MAKE_GAP_MAP_FOLDER =
@@ -53,14 +51,14 @@ sig
   type env = Folder.env
   type state = Folder.state
 
-  type t =
+  type 'value t =
     { leftKeys: Pair.key vector list
-    , leftVals: Pair.value vector list
+    , leftVals: 'value vector list
     , rightKeys: Pair.key vector list
-    , rightVals: Pair.value vector list
+    , rightVals: 'value vector list
     }
 
-  val foldUnordered: t * env * state -> state
+  val foldUnordered: 'value t * env * state -> state
 end
 
 functor MakeGapMapFolder(Folder: GAP_MAP_FOLDER): MAKE_GAP_MAP_FOLDER =
@@ -71,11 +69,11 @@ struct
   type env = Folder.env
   type state = Folder.state
 
-  type t =
+  type 'value t =
     { leftKeys: Pair.key vector list
-    , leftVals: Pair.value vector list
+    , leftVals: 'value vector list
     , rightKeys: Pair.key vector list
-    , rightVals: Pair.value vector list
+    , rightVals: 'value vector list
     }
 
   fun foldVecUnordered (pos, keys, values, env, state) =
@@ -106,7 +104,7 @@ signature MAP =
 sig
   structure Pair: GAP_MAP_PAIR
   type env
-  val map: Pair.value * env -> Pair.value
+  val map: 'value * env -> 'value
 end
 
 signature MAPPER =
@@ -114,14 +112,14 @@ sig
   structure Map: MAP
   structure Pair: GAP_MAP_PAIR
 
-  type t =
+  type 'value t =
     { leftKeys: Pair.key vector list
-    , leftVals: Pair.value vector list
+    , leftVals: 'value vector list
     , rightKeys: Pair.key vector list
-    , rightVals: Pair.value vector list
+    , rightVals: 'value vector list
     }
 
-  val map: t * Map.env -> t
+  val map: 'value t * Map.env -> 'value t
 end
 
 functor MakeGapMapMapper(Map: MAP): MAPPER =
@@ -129,11 +127,11 @@ struct
   structure Map = Map
   structure Pair = Map.Pair
 
-  type t =
+  type 'value t =
     { leftKeys: Pair.key vector list
-    , leftVals: Pair.value vector list
+    , leftVals: 'value vector list
     , rightKeys: Pair.key vector list
-    , rightVals: Pair.value vector list
+    , rightVals: 'value vector list
     }
 
   fun mapList (hd :: tl, acc, env) =
@@ -142,7 +140,7 @@ struct
         end
     | mapList ([], acc, env) = List.rev acc
 
-  fun map ({leftKeys, leftVals, rightKeys, rightVals}: t, env) : t =
+  fun map ({leftKeys, leftVals, rightKeys, rightVals}: 'value t, env) : 'value t =
     let
       val leftVals = mapList (leftVals, [], env)
       val rightVals = mapList (rightVals, [], env)
@@ -160,18 +158,17 @@ struct
   structure Fn = Fn
 
   type key = Fn.key
-  type value = Fn.value
 
-  type t =
+  type 'value t =
     { leftKeys: Fn.key vector list
-    , leftVals: Fn.value vector list
+    , leftVals: 'value vector list
     , rightKeys: Fn.key vector list
-    , rightVals: Fn.value vector list
+    , rightVals: 'value vector list
     }
 
   val empty = {leftKeys = [], leftVals = [], rightKeys = [], rightVals = []}
 
-  fun isEmpty ({leftKeys = [], rightKeys = [], ...}: t) = true
+  fun isEmpty ({leftKeys = [], rightKeys = [], ...}: 'value t) = true
     | isEmpty _ = false
 
   fun isLessThanTarget (v1, v2) =
