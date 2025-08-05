@@ -1347,8 +1347,8 @@ struct
                             * while origIdx considers index to return 
                             * once buffer is done deleting. *)
                            deleteRightFromHere
-                             ( curIdx + String.size newLeftStringsHd
-                             , curLine + Vector.length newLeftLinesHd
+                             ( curIdx + String.size newString
+                             , curLine + Vector.length newLines
                              , nextIdx
                              , finish
                              , newLeftStringsHd :: leftStringsTl
