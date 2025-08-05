@@ -1347,8 +1347,8 @@ struct
                             * while origIdx considers index to return 
                             * once buffer is done deleting. *)
                            deleteRightFromHere
-                             ( curIdx + String.size newString
-                             , curLine + Vector.length newLines
+                             ( curIdx + String.size newLeftStringsHd
+                             , curLine + Vector.length newLeftLinesHd
                              , nextIdx
                              , finish
                              , newLeftStringsHd :: leftStringsTl
@@ -1372,7 +1372,7 @@ struct
                            )
                    | (_, _) =>
                        deleteRightFromHere
-                         ( nextIdx
+                         ( curIdx + String.size newString
                          , curLine + Vector.length newLines
                          , nextIdx
                          , finish
@@ -1418,7 +1418,7 @@ struct
                     else
                       Vector.fromList []
                 in
-                  { idx = curIdx + sub1Length
+                  { idx = curIdx + String.size sub1
                   , line = curLine + Vector.length sub1Lines
                   , leftStrings = sub1 :: leftStrings
                   , leftLines = sub1Lines :: leftLines
@@ -1444,7 +1444,7 @@ struct
                         VectorSlice.vector slice
                       end
                 in
-                  { idx = curIdx + strLength
+                  { idx = curIdx + String.size str
                   , line = curLine + Vector.length newLeftLines
                   , leftStrings = str :: leftStrings
                   , leftLines = newLeftLines :: leftLines
@@ -1460,7 +1460,7 @@ struct
                * So pass the rightStringsTl and rightLinesTl to a function that
                * will delete rightwards if it needs to, or else terminates. *)
               deleteRightFromHere
-                ( nextIdx
+                ( curIdx + String.size rightStringsHd
                 , curLine + Vector.length rightLinesHd
                 , nextIdx
                 , finish
@@ -1759,7 +1759,7 @@ struct
                         Vector.fromList []
                     end
                 in
-                  { idx = prevIdx + sub1Length
+                  { idx = prevIdx + String.size sub1
                   , line =
                       (curLine - Vector.length leftLinesHd)
                       + Vector.length sub1Lines
@@ -1954,10 +1954,7 @@ struct
 
   local
     fun consIfNotEmpty (s, acc) =
-      if String.size s > 0 then
-        s :: acc
-      else
-        acc
+      if String.size s > 0 then s :: acc else acc
 
     (* We build up the string list and, at the end,
      * we always make sure to reverse the list too
@@ -1981,19 +1978,14 @@ struct
             else
               (* nextIdx = finish 
                * so add current hd to vec and then concat *)
-               let
-                 val acc = hd :: acc
-                 val acc = consIfNotEmpty (endWith, acc)
-               in
-                 List.rev acc
-               end
+              let
+                val acc = hd :: acc
+                val acc = consIfNotEmpty (endWith, acc)
+              in
+                List.rev acc
+              end
           end
-      | [] =>
-          let
-            val acc = consIfNotEmpty (endWith, acc)
-          in
-            List.rev acc
-          end
+      | [] => let val acc = consIfNotEmpty (endWith, acc) in List.rev acc end
 
     fun moveRightAndSub (start, finish, curIdx, right, endWith) =
       case right of
@@ -2008,14 +2000,14 @@ struct
               if nextIdx < finish then
                 (* get starting acc, 
                  * and then call subRightFromHere *)
-                 let
-                   val substart = start - curIdx
-                   val length = String.size hd - substart
-                   val acc = [String.substring (hd, substart, length)]
-                   val acc = subRightFromHere (nextIdx, finish, tl, acc, endWith)
-                 in
-                   String.concat acc
-                 end
+                let
+                  val substart = start - curIdx
+                  val length = String.size hd - substart
+                  val acc = [String.substring (hd, substart, length)]
+                  val acc = subRightFromHere (nextIdx, finish, tl, acc, endWith)
+                in
+                  String.concat acc
+                end
               else if nextIdx > finish then
                 (* have to get susbstring from middle of this string *)
                 let
@@ -2024,9 +2016,7 @@ struct
                   val length = subfinish - substart
                   val str = String.substring (hd, substart, length)
                 in
-                  if String.size endWith > 0 
-                  then str ^ endWith
-                  else str
+                  if String.size endWith > 0 then str ^ endWith else str
                 end
               else
                 (* have to get substring from middle to end *)
@@ -2035,21 +2025,17 @@ struct
                   val length = String.size hd - substart
                   val str = String.substring (hd, substart, length)
                 in
-                  if String.size endWith > 0 
-                  then str ^ endWith
-                  else str
+                  if String.size endWith > 0 then str ^ endWith else str
                 end
             else
               (* nextIdx = start
                * so we have to ignore this string
                * and start building acc from tl *)
-               let
-                 val acc = subRightFromHere (nextIdx, finish, tl, [], endWith)
-               in
-                 String.concat acc
-               end
+              let val acc = subRightFromHere (nextIdx, finish, tl, [], endWith)
+              in String.concat acc
+              end
           end
-      | [] => 
+      | [] =>
           (* if there are no strings to the right,
            * return empty string,
            * as we cannot do much else. *)
@@ -2078,19 +2064,15 @@ struct
             else
               (* start = prevIdx
                * add hd to acc and return *)
-               let
-                 val acc = hd :: acc
-               in
-                 String.concat acc
-               end
+              let val acc = hd :: acc
+              in String.concat acc
+              end
           end
       | [] => String.concat acc
 
     fun subFromLeftAndRight (start, finish, curIdx, left, right, endWith) =
-      let
-        val acc = subRightFromHere (curIdx, finish, right, [], endWith)
-      in
-        subLeftFromHere (start, curIdx, left, acc)
+      let val acc = subRightFromHere (curIdx, finish, right, [], endWith)
+      in subLeftFromHere (start, curIdx, left, acc)
       end
 
     fun moveLeftAndSub (start, finish, curIdx, left, endWith) =
@@ -2108,40 +2090,37 @@ struct
                  * and continue substring leftwards *)
                 let
                   val length = finish - prevIdx
-                  val str = String.substring (hd, 0, length) val acc = [str, endWith]
+                  val str = String.substring (hd, 0, length)
+                  val acc = [str, endWith]
                 in
                   subLeftFromHere (start, prevIdx, tl, acc)
                 end
               else if prevIdx < start then
                 (* we want to return a substring 
                  * extracted from the middle of hd *)
-                 let
-                   val substart = start - prevIdx
-                   val subfinish = finish - prevIdx
-                   val length = subfinish - substart
-                   val str = String.substring (hd, substart, length)
-                 in
-                   if String.size endWith > 0 
-                   then str ^ endWith
-                   else str
-                 end
+                let
+                  val substart = start - prevIdx
+                  val subfinish = finish - prevIdx
+                  val length = subfinish - substart
+                  val str = String.substring (hd, substart, length)
+                in
+                  if String.size endWith > 0 then str ^ endWith else str
+                end
               else
                 (* prevIdx = start
                  * we want to return a substring starting from 0 *)
-                 let
-                   val subfinish = finish - prevIdx
-                   val length = String.size hd - subfinish
-                   val str = String.substring (hd, 0, length)
-                 in
-                   if String.size endWith > 0 
-                   then str ^ endWith
-                   else str
-                 end
+                let
+                  val subfinish = finish - prevIdx
+                  val length = String.size hd - subfinish
+                  val str = String.substring (hd, 0, length)
+                in
+                  if String.size endWith > 0 then str ^ endWith else str
+                end
             else
               (* prevIdx = finish
                * so we want to ignore hd and start
                * subLeftFromHere with an empty list *)
-               subLeftFromHere (start, prevIdx, tl, [endWith]) 
+              subLeftFromHere (start, prevIdx, tl, [endWith])
           end
       | [] => endWith
 
@@ -2163,7 +2142,7 @@ struct
           String.concat acc
         end
   in
-    fun substringWithEnd (start, length, buffer : t, endWith) =
+    fun substringWithEnd (start, length, buffer: t, endWith) =
       let
         val finish = start + length
         val {idx, leftStrings, rightStrings, ...} = buffer
@@ -2171,7 +2150,7 @@ struct
         sub (start, finish, idx, leftStrings, rightStrings, endWith)
       end
 
-    fun nullSubstring (start, length, buffer : t) =
+    fun nullSubstring (start, length, buffer: t) =
       let
         val finish = start + length
         val {idx, leftStrings, rightStrings, ...} = buffer
@@ -2179,7 +2158,7 @@ struct
         sub (start, finish, idx, leftStrings, rightStrings, "\u0000")
       end
 
-    fun substring (start, length, buffer : t) =
+    fun substring (start, length, buffer: t) =
       let
         val finish = start + length
         val {idx, leftStrings, rightStrings, ...} = buffer
@@ -2251,8 +2230,7 @@ struct
     ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
     helpGoToStart (idx, line, leftStrings, leftLines, rightStrings, rightLines)
 
-  fun helpGoToEnd
-    (idx, line, leftStrings, leftLines, rightStrings, rightLines) =
+  fun helpGoToEnd (idx, line, leftStrings, leftLines, rightStrings, rightLines) =
     case (rightStrings, rightLines) of
       (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
         (case (leftStrings, leftLines) of
@@ -2310,8 +2288,7 @@ struct
         , rightLines = []
         }
 
-  fun goToEnd
-    ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
+  fun goToEnd ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
     helpGoToEnd (idx, line, leftStrings, leftLines, rightStrings, rightLines)
 
   (* function to abstract leftwards movement.
@@ -2329,117 +2306,133 @@ struct
    * the search number, this parameter is just passed to fGoLeft.
    * *)
   fun moveLeft
-    ( idx, line, searchTo
-    , leftStrings, leftLines, rightStrings, rightLines
-    , lStrHd, lStrTl, lLnHd, lLnTl
+    ( idx
+    , line
+    , searchTo
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , lStrHd
+    , lStrTl
+    , lLnHd
+    , lLnTl
     , fGoLeft
     ) =
-      case (rightStrings, rightLines) of
-        (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
-          if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
-            (* join into a single node before moving *)
-            let
-              val newRstrHd = lStrHd ^ rStrHd
-              val newRlnHd =
-                Vector.tabulate
-                  ( Vector.length lLnHd + Vector.length rLnHd
-                  , fn lnIdx =>
-                      if lnIdx < Vector.length lLnHd then
-                        Vector.sub (lLnHd, lnIdx)
-                      else
-                        Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
-                        + String.size lStrHd
-                  )
-            in
-              fGoLeft
-                ( idx - String.size lStrHd
-                , line - Vector.length lLnHd
-                , searchTo
-                , lStrTl
-                , lLnTl
-                , newRstrHd :: rStrTl
-                , newRlnHd :: rLnTl
+    case (rightStrings, rightLines) of
+      (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
+        if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
+          (* join into a single node before moving *)
+          let
+            val newRstrHd = lStrHd ^ rStrHd
+            val newRlnHd =
+              Vector.tabulate
+                ( Vector.length lLnHd + Vector.length rLnHd
+                , fn lnIdx =>
+                    if lnIdx < Vector.length lLnHd then
+                      Vector.sub (lLnHd, lnIdx)
+                    else
+                      Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
+                      + String.size lStrHd
                 )
-            end
-          else
-            (* move without joining *)
+          in
             fGoLeft
               ( idx - String.size lStrHd
               , line - Vector.length lLnHd
               , searchTo
               , lStrTl
               , lLnTl
-              , lStrHd :: rightStrings
-              , lLnHd :: rightLines
+              , newRstrHd :: rStrTl
+              , newRlnHd :: rLnTl
               )
-      | (_, _) =>
-          (* right side is empty, so just move left without joining *)
+          end
+        else
+          (* move without joining *)
           fGoLeft
             ( idx - String.size lStrHd
             , line - Vector.length lLnHd
             , searchTo
             , lStrTl
             , lLnTl
-            , [lStrHd]
-            , [lLnHd]
+            , lStrHd :: rightStrings
+            , lLnHd :: rightLines
             )
+    | (_, _) =>
+        (* right side is empty, so just move left without joining *)
+        fGoLeft
+          ( idx - String.size lStrHd
+          , line - Vector.length lLnHd
+          , searchTo
+          , lStrTl
+          , lLnTl
+          , [lStrHd]
+          , [lLnHd]
+          )
 
   (* same as moveLeft function, except it move rightwards instead *)
   fun moveRight
-    ( idx, line, searchTo
-    , leftStrings, leftLines, rightStrings, rightLines
-    , rStrHd, rStrTl, rLnHd, rLnTl
+    ( idx
+    , line
+    , searchTo
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , rStrHd
+    , rStrTl
+    , rLnHd
+    , rLnTl
     , fGoRight
     ) =
-      case (leftStrings, leftLines) of
-         (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
-           if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
-             (* can join while staying in limit, so join and move right *)
-             let
-               val newLstrHd = lStrHd ^ rStrHd
-               val newLlnHd =
-                 Vector.tabulate
-                   ( Vector.length lLnHd + Vector.length rLnHd
-                   , fn lnIdx =>
-                       if lnIdx < Vector.length lLnHd then
-                         Vector.sub (lLnHd, lnIdx)
-                       else
-                         Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
-                         + String.size lStrHd
-                   )
-             in
-               fGoRight
-                 ( idx + String.size rStrHd
-                 , line + Vector.length rLnHd
-                 , searchTo
-                 , newLstrHd :: lStrTl
-                 , newLlnHd :: lLnTl
-                 , rStrTl
-                 , rLnTl
-                 )
-             end
-           else
-             (* cannot join while staying in limit, so just move right *)
-             fGoRight
-               ( idx + String.size rStrHd
-               , line + Vector.length rLnHd
-               , searchTo
-               , rStrHd :: leftStrings
-               , rLnHd :: leftLines
-               , rStrTl
-               , rLnTl
-               )
-       | (_, _) =>
-           (* left side is empty, so just move rightwards without joining *)
-           fGoRight
-             ( String.size rStrHd
-             , Vector.length rLnHd
-             , searchTo
-             , [rStrHd]
-             , [rLnHd]
-             , rStrTl
-             , rLnTl
-             )
+    case (leftStrings, leftLines) of
+      (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
+        if isInLimit (lStrHd, rStrHd, lLnHd, rLnHd) then
+          (* can join while staying in limit, so join and move right *)
+          let
+            val newLstrHd = lStrHd ^ rStrHd
+            val newLlnHd =
+              Vector.tabulate
+                ( Vector.length lLnHd + Vector.length rLnHd
+                , fn lnIdx =>
+                    if lnIdx < Vector.length lLnHd then
+                      Vector.sub (lLnHd, lnIdx)
+                    else
+                      Vector.sub (rLnHd, lnIdx - Vector.length lLnHd)
+                      + String.size lStrHd
+                )
+          in
+            fGoRight
+              ( idx + String.size rStrHd
+              , line + Vector.length rLnHd
+              , searchTo
+              , newLstrHd :: lStrTl
+              , newLlnHd :: lLnTl
+              , rStrTl
+              , rLnTl
+              )
+          end
+        else
+          (* cannot join while staying in limit, so just move right *)
+          fGoRight
+            ( idx + String.size rStrHd
+            , line + Vector.length rLnHd
+            , searchTo
+            , rStrHd :: leftStrings
+            , rLnHd :: leftLines
+            , rStrTl
+            , rLnTl
+            )
+    | (_, _) =>
+        (* left side is empty, so just move rightwards without joining *)
+        fGoRight
+          ( String.size rStrHd
+          , Vector.length rLnHd
+          , searchTo
+          , [rStrHd]
+          , [rLnHd]
+          , rStrTl
+          , rLnTl
+          )
 
   fun helpGoToLineLeft
     (idx, line, searchLine, leftStrings, leftLines, rightStrings, rightLines) =
@@ -2448,11 +2441,19 @@ struct
         if searchLine < line - Vector.length lLnHd then
           (* move leftwards, joining if possible *)
           moveLeft
-            ( idx, line, searchLine
-            , leftStrings, leftLines, rightStrings, rightLines
-            , lStrHd, lStrTl, lLnHd, lLnTl
+            ( idx
+            , line
+            , searchLine
+            , leftStrings
+            , leftLines
+            , rightStrings
+            , rightLines
+            , lStrHd
+            , lStrTl
+            , lLnHd
+            , lLnTl
             , helpGoToLineLeft
-            ) 
+            )
         else
           (* line is at left head, so place it to the right and return *)
           { idx = idx - String.size lStrHd
@@ -2479,11 +2480,19 @@ struct
         if searchLine > line + Vector.length rLnHd then
           (* have to move rightwards *)
           moveRight
-            ( idx, line, searchLine
-            , leftStrings, leftLines, rightStrings, rightLines
-            , rStrHd, rStrTl, rLnHd, rLnTl
+            ( idx
+            , line
+            , searchLine
+            , leftStrings
+            , leftLines
+            , rightStrings
+            , rightLines
+            , rStrHd
+            , rStrTl
+            , rLnHd
+            , rLnTl
             , helpGoToLineRight
-            ) 
+            )
         else
           (* searchLine is in rStrHd/rLnHd, so return *)
           { idx = idx
@@ -2538,11 +2547,19 @@ struct
         if searchIdx < idx - String.size lStrHd then
           (* move leftwards, joining if possible *)
           moveLeft
-            ( idx, line, searchIdx
-            , leftStrings, leftLines, rightStrings, rightLines
-            , lStrHd, lStrTl, lLnHd, lLnTl
+            ( idx
+            , line
+            , searchIdx
+            , leftStrings
+            , leftLines
+            , rightStrings
+            , rightLines
+            , lStrHd
+            , lStrTl
+            , lLnHd
+            , lLnTl
             , helpGoToIdxLeft
-            ) 
+            )
         else
           (* line is at left head, so place it to the right and return *)
           { idx = idx - String.size lStrHd
@@ -2569,11 +2586,19 @@ struct
         if searchIdx > idx + String.size rStrHd then
           (* have to move rightwards *)
           moveRight
-            ( idx, line, searchIdx
-            , leftStrings, leftLines, rightStrings, rightLines
-            , rStrHd, rStrTl, rLnHd, rLnTl
+            ( idx
+            , line
+            , searchIdx
+            , leftStrings
+            , leftLines
+            , rightStrings
+            , rightLines
+            , rStrHd
+            , rStrTl
+            , rLnHd
+            , rLnTl
             , helpGoToIdxRight
-            ) 
+            )
         else
           (* searchLine is in rStrHd/rLnHd, so return *)
           { idx = idx
