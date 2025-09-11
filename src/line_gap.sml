@@ -2646,6 +2646,77 @@ struct
         buffer
     end
 
+  fun getLineNumberLeft (findIdx, curIdx, curLine, leftStrings, leftLines) =
+    case (leftStrings, leftLines) of
+      (shd :: stl, lhd :: ltl) =>
+        let
+          val prevIdx = curIdx - String.size shd
+        in
+          if findIdx = prevIdx then
+            curLine - Vector.length lhd
+          else if findIdx > prevIdx then
+            (* bin search vector *)
+            if Vector.length lhd = 0 then
+              curLine
+            else
+              let
+                val relativeIdx = findIdx - prevIdx
+                val relativeLine = binSearch (relativeIdx, lhd)
+                val lineOffset = Vector.sub (lhd, relativeLine)
+                val prevLine = curLine - Vector.length lhd
+              in
+                prevLine + lineOffset
+              end
+          else
+            let val prevLine = curLine - Vector.length lhd
+            in getLineNumberLeft (findIdx, prevIdx, prevLine, stl, ltl)
+            end
+        end
+    | (_, _) => 0
+
+  fun getLineNumberRight (findIdx, curIdx, curLine, rightStrings, rightLines) =
+    case (rightStrings, rightLines) of
+      (shd :: stl, lhd :: ltl) =>
+        let
+          val nextIdx = curIdx + String.size shd
+        in
+          if findIdx = nextIdx then
+            curLine + Vector.length lhd
+          else if findIdx < nextIdx then
+            if Vector.length lhd = 0 then
+              curLine
+            else
+              let
+                val relativeIdx = findIdx - curIdx
+                val relativeLine = binSearch (relativeIdx, lhd)
+                val lineOffset = Vector.sub (lhd, relativeLine)
+              in
+                curLine + lineOffset
+              end
+          else
+            let val nextLine = curLine + Vector.length lhd
+            in getLineNumberRight (findIdx, nextIdx, nextLine, stl, ltl)
+            end
+        end
+    | (_, _) => curLine
+
+  fun getLineNumberOfIdx (findIdx, buffer: t) =
+    let
+      val
+        { idx = curIdx
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , line = curLine
+        } = buffer
+    in
+      if findIdx < curIdx then
+        getLineNumberLeft (findIdx, curIdx, curLine, leftStrings, leftLines)
+      else
+        getLineNumberRight (findIdx, curLine, curLine, rightStrings, rightLines)
+    end
+
   (* TEST CODE *)
   local
     fun lineBreaksToString vec =
