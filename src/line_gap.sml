@@ -28,6 +28,8 @@ sig
   val goToIdx: int * t -> t
   val goToLine: int * t -> t
 
+  val getLineNumberOfIdx: int * t -> int
+
   (* for testing *)
   val verifyIndex: t -> unit
   val verifyLines: t -> unit
