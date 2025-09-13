@@ -2663,10 +2663,10 @@ struct
             else
               let
                 val prevLine = curLine - Vector.length lhd
-                val relativeIdx = findIdx - prevIdx
-                val relativeLine = binSearch (relativeIdx, lhd)
+                val relativeIdx = findIdx - prevIdx - 1
+                val relativeLine = binSearch (relativeIdx, lhd) + 1
               in
-                if relativeLine < 0 then prevLine else prevLine + relativeLine
+                prevLine + relativeLine
               end
           else
             let val prevLine = curLine - Vector.length lhd
@@ -2688,10 +2688,10 @@ struct
               curLine
             else
               let
-                val relativeIdx = findIdx - curIdx
-                val relativeLine = binSearch (relativeIdx, lhd)
+                val relativeIdx = findIdx - curIdx - 1
+                val relativeLine = binSearch (relativeIdx, lhd) + 1
               in
-                if relativeLine < 0 then curLine else curLine + relativeLine
+                curLine + relativeLine
               end
           else
             let val nextLine = curLine + Vector.length lhd
@@ -2713,8 +2713,10 @@ struct
     in
       if findIdx < curIdx then
         getLineNumberLeft (findIdx, curIdx, curLine, leftStrings, leftLines)
+      else if findIdx > curIdx then
+        getLineNumberRight (findIdx, curIdx, curLine, rightStrings, rightLines)
       else
-        getLineNumberRight (findIdx, curLine, curLine, rightStrings, rightLines)
+        curLine
     end
 
   (* TEST CODE *)
