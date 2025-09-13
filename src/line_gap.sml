@@ -2662,12 +2662,12 @@ struct
               curLine
             else
               let
+                val prevLine = curLine - Vector.length lhd
                 val relativeIdx = findIdx - prevIdx
                 val relativeLine = binSearch (relativeIdx, lhd)
-                val lineOffset = Vector.sub (lhd, relativeLine)
-                val prevLine = curLine - Vector.length lhd
               in
-                prevLine + lineOffset
+                if relativeLine < 0 then prevLine
+                else Vector.sub (lhd, relativeLine) + prevLine
               end
           else
             let val prevLine = curLine - Vector.length lhd
@@ -2691,7 +2691,8 @@ struct
               let
                 val relativeIdx = findIdx - curIdx
                 val relativeLine = binSearch (relativeIdx, lhd)
-                val lineOffset = Vector.sub (lhd, relativeLine)
+                val lineOffset =
+                  if relativeLine < 0 then 0 else Vector.sub (lhd, relativeLine)
               in
                 curLine + lineOffset
               end
