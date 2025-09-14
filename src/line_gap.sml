@@ -3281,8 +3281,8 @@ struct
         val {rightLines, rightStrings, ...} = goToStart buffer
 
         val textLength = #textLength buffer
-        val textLengthIsCorrect =
-          textLength = String.size (String.concat rightStrings)
+        val correctTextLength = String.size (String.concat rightStrings)
+        val textLengthIsCorrect = textLength = correctTextLength
 
         val lineLength = #lineLength buffer
         val correctLineLength = Vector.length (Vector.concat rightLines)
@@ -3315,7 +3315,24 @@ struct
                 , "text length: "
                 , Int.toString textLength
                 , "; correct length: "
-                , Int.toString correctIdx
+                , Int.toString correctTextLength
+                , "\n"
+                ]
+            in
+              print msg
+            end
+
+        val _ =
+          if lineLengthIsCorrect then
+            print "lineLength is correct\n"
+          else
+            let
+              val msg = String.concat
+                [ "line length is incorrect;"
+                , "line length: "
+                , Int.toString lineLength
+                , "; correct length: "
+                , Int.toString correctLineLength
                 , "\n"
                 ]
             in
