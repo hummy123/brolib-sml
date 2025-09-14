@@ -1584,9 +1584,16 @@ struct
                     else
                       Vector.fromList []
 
-                  val newTextLength = String.size sub1 + String.size sub1
-                  val newLineLength =
+                  val newNodeTextLength = String.size sub1 + String.size sub2
+                  val textLengthDifference =
+                    oldNodeTextLength - newNodeTextLength
+                  val newTextLength = textLength - textLengthDifference
+
+                  val newNodeLineLength =
                     Vector.length sub1Lines + Vector.length sub2Lines
+                  val lineLengthDifference =
+                    oldNodeLineLength - newNodeLineLength
+                  val newLineLength = lineLength - lineLengthDifference
                 in
                   { idx = curIdx + String.size sub1
                   , textLength = newTextLength
