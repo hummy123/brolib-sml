@@ -1304,11 +1304,11 @@ struct
                   else
                     rightLinesHd (* empty vector *)
 
-                val newNodeTextLength = String.size newString
-                val newNodeLineLength = Vector.length newLines
-
-                val textLengthDifference = oldNodeTextLength - newNodeLineLength
+                val newNodeTextLength = String.size newStr
+                val textLengthDifference = oldNodeTextLength - newNodeTextLength
                 val textLength = textLength - textLengthDifference
+
+                val newNodeLineLength = Vector.length newLines
                 val lineLengthDifference = oldNodeLineLength - newNodeLineLength
                 val lineLength = lineLength - lineLengthDifference
               in
@@ -1463,9 +1463,14 @@ struct
                       end
 
                   val newNodeTextLength = String.size newString
+                  val textLengthDifference =
+                    oldNodeTextLength - newNodeTextLength
+                  val textLength = textLength - textLengthDifference
+
                   val newNodeLineLength = Vector.length newLines
-                  val textLength = oldNodeTextLength - newNodeTextLength
-                  val lineLength = oldNodeLineLength - newNodeLineLength
+                  val lineLengthDifference =
+                    oldNodeLineLength - newNodeLineLength
+                  val lineLength = lineLength - lineLengthDifference
                 in
                   (* Try joining new string with left head if possible. *)
                   (case (leftStrings, leftLines) of
@@ -1544,7 +1549,7 @@ struct
                 (* Base case: delete from the middle part of this string. *)
                 let
                   val oldNodeTextLength = String.size rightStringsHd
-                  val oldNodeLineLength = String.size rightLinesHd
+                  val oldNodeLineLength = Vector.length rightLinesHd
 
                   val sub1Length = start - curIdx
                   val sub1 = String.substring (rightStringsHd, 0, sub1Length)
@@ -1615,9 +1620,14 @@ struct
                       end
 
                   val newNodeTextLength = String.size str
+                  val textLengthDifference =
+                    oldNodeTextLength - newNodeTextLength
+                  val newTextLength = textLength - textLengthDifference
+
                   val newNodeLineLength = Vector.length newLeftLines
-                  val newTextLength = oldNodeTextLength - newNodeTextLength
-                  val newLineLength = oldNodeLineLength - newNodeLineLength
+                  val lineLengthDifference =
+                    oldNodeLineLength - newNodeLineLength
+                  val newLineLength = lineLength - lineLengthDifference
                 in
                   { idx = curIdx + String.size str
                   , textLength = newTextLength
@@ -1661,7 +1671,16 @@ struct
           }
 
     fun deleteLeftFromHere
-      (start, curIdx, curLine, leftStrings, leftLines, rightStrings, rightLines) =
+      ( start
+      , curIdx
+      , curLine
+      , leftStrings
+      , leftLines
+      , rightStrings
+      , rightLines
+      , textLength
+      , lineLength
+      ) =
       case (leftStrings, leftLines) of
         (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
           let
@@ -1678,10 +1697,15 @@ struct
                 , leftLinesTl
                 , rightStrings
                 , rightLines
+                , textLength - String.size leftStringsHd
+                , lineLength - Vector.length leftLinesHd
                 )
             else if start > prevIdx then
               (* Base case: delete end part of this string and return. *)
               let
+                val oldNodeTextLength = String.size leftStringsHd
+                val oldNodeLineLength = Vector.length leftLinesHd
+
                 val length = start - prevIdx
                 val newStr = String.substring (leftStringsHd, 0, length)
                 val newLines =
@@ -1696,9 +1720,19 @@ struct
                     end
                   else
                     Vector.fromList []
+
+                val newNodeTextLength = String.size newStr
+                val textLengthDifference = oldNodeTextLength - newNodeTextLength
+                val newTextLength = textLength - textLengthDifference
+
+                val newNodeLineLength = Vector.length newLines
+                val lineLengthDifference = oldNodeLineLength - newNodeLineLength
+                val newLineLength = lineLength - lineLengthDifference
               in
                 { idx = prevIdx + String.size newStr
+                , textLength = newTextLength
                 , line = prevLine + Vector.length newLines
+                , lineLength = newLineLength
                 , leftStrings = newStr :: leftStringsTl
                 , leftLines = newLines :: leftLinesTl
                 , rightStrings = rightStrings
@@ -1714,6 +1748,8 @@ struct
               , leftLines = leftLinesTl
               , rightStrings = rightStrings
               , rightLines = rightLines
+              , textLength = textLength - String.size leftStringsHd
+              , lineLength = lineLength - Vector.length leftLinesHd
               }
           end
       | (_, _) =>
@@ -1723,6 +1759,8 @@ struct
           , leftLines = leftLines
           , rightStrings = rightStrings
           , rightLines = rightLines
+          , textLength = textLength
+          , lineLength = lineLength
           }
 
     fun deleteFromLetAndRight
@@ -1734,6 +1772,8 @@ struct
       , leftLines
       , rightStrings
       , rightLines
+      , textLength
+      , lineLength
       ) =
       let
         val
@@ -1743,6 +1783,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           } = deleteRightFromHere
           ( curIdx
           , curLine
@@ -1752,6 +1794,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       in
         deleteLeftFromHere
@@ -1762,6 +1806,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       end
 
@@ -1774,6 +1820,8 @@ struct
       , leftLines
       , rightStrings
       , rightLines
+      , textLength
+      , lineLength
       ) =
       case (leftStrings, leftLines) of
         (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
@@ -1826,6 +1874,8 @@ struct
                          , leftLinesTl
                          , newRightStrings
                          , newRightLines
+                         , textLength
+                         , lineLength
                          )
                      end
                    else
@@ -1839,6 +1889,8 @@ struct
                        , leftLinesTl
                        , leftStringsHd :: rightStrings
                        , leftLinesHd :: rightLines
+                       , textLength
+                       , lineLength
                        )
                | (_, _) =>
                    (* Base case: reached empty list while trying to move leftwards.
@@ -1852,12 +1904,17 @@ struct
                      , leftLinesTl
                      , [leftStringsHd]
                      , [leftLinesHd]
+                     , textLength
+                     , lineLength
                      ))
             else if prevIdx < finish then
               if prevIdx > start then
                 (* Delete from start point of this string,
                  * and then call function to continue deleting leftwards. *)
                 let
+                  val oldNodeTextLength = String.size leftStringsHd
+                  val oldNodeLineLength = Vector.length leftLinesHd
+
                   val stringStart = finish - prevIdx
                   val newString = String.substring
                     ( leftStringsHd
@@ -1881,6 +1938,16 @@ struct
                   val newRightStrings = newString :: rightStrings
                   val newRightLines = newLines :: rightLines
                   val prevLine = curLine - Vector.length leftLinesHd
+
+                  val newNodeTextLength = String.size newString
+                  val textLengthDifference =
+                    oldNodeTextLength - newNodeTextLength
+                  val textLength = textLength - textLengthDifference
+
+                  val newNodeLineLength = Vector.length newLines
+                  val lineLengthDifference =
+                    oldNodeLineLength - newNodeLineLength
+                  val lineLength = lineLength - lineLengthDifference
                 in
                   deleteLeftFromHere
                     ( start
@@ -1890,6 +1957,8 @@ struct
                     , leftLinesTl
                     , newRightStrings
                     , newRightLines
+                    , textLength
+                    , lineLength
                     )
                 end
               else if prevIdx < start then
@@ -1897,6 +1966,9 @@ struct
                  * We also have to delete in the middle of leftLinesHd in order to
                  * do this. *)
                 let
+                  val oldNodeTextLength = String.size leftStringsHd
+                  val oldNodeLineLength = Vector.length leftLinesHd
+
                   val sub1Length = start - prevIdx
                   val sub1 = String.substring (leftStringsHd, 0, sub1Length)
                   val sub2Start = finish - prevIdx
@@ -1939,6 +2011,17 @@ struct
                       else
                         Vector.fromList []
                     end
+
+                  val newNodeTextLength = String.size sub1 + String.size sub2
+                  val textLengthDifference =
+                    oldNodeTextLength - newNodeTextLength
+                  val textLength = textLength - textLengthDifference
+
+                  val newNodeLineLength =
+                    Vector.length sub1Lines + Vector.length sub2Lines
+                  val lineLengthDifference =
+                    oldNodeLineLength - newNodeLineLength
+                  val lineLength = lineLength - lineLengthDifference
                 in
                   { idx = prevIdx + String.size sub1
                   , line =
@@ -1948,12 +2031,17 @@ struct
                   , leftLines = sub1Lines :: leftLinesTl
                   , rightStrings = sub2 :: rightStrings
                   , rightLines = sub2Lines :: rightLines
+                  , textLength = textLength
+                  , lineLength = lineLength
                   }
                 end
               else
                 (* prevIdx = start 
                  * We want to delete from the start of this string and stop. *)
                 let
+                  val oldNodeTextLength = String.size leftStringsHd
+                  val oldNodeLineLength = Vector.length leftLinesHd
+
                   val strStart = finish - prevIdx
                   val str = String.substring
                     ( leftStringsHd
@@ -1974,10 +2062,22 @@ struct
                       else
                         Vector.fromList []
                     end
+
+                  val newNodeTextLength = String.size str
+                  val textLengthDifference =
+                    oldNodeTextLength - newNodeTextLength
+                  val textLength = textLength - textLengthDifference
+
+                  val newNodeLineLength = Vector.length lines
+                  val lineLengthDifference =
+                    oldNodeLineLength - newNodeLineLength
+                  val lineLength = lineLength - lineLengthDifference
                 in
                   { idx = prevIdx + String.size str
+                  , textLength = textLength
                   , line =
                       (curLine - Vector.length leftLinesHd) + String.size str
+                  , lineLength = lineLength
                   , leftStrings = str :: leftStringsTl
                   , leftLines = lines :: leftLinesTl
                   , rightStrings = rightStrings
@@ -2026,6 +2126,8 @@ struct
                          , leftLinesTl
                          , newRightStringsHd :: rightStringsTl
                          , newRightLinesHd :: rightLinesTl
+                         , textLength
+                         , lineLength
                          )
                      end
                    else
@@ -2038,6 +2140,8 @@ struct
                        , leftLinesTl
                        , leftStringsHd :: rightStrings
                        , leftLinesHd :: rightLines
+                       , textLength
+                       , lineLength
                        )
                | (_, _) =>
                    (* Right strings and lines are empty, so can't join. *)
@@ -2049,12 +2153,16 @@ struct
                      , leftLinesTl
                      , [leftStringsHd]
                      , [leftLinesHd]
+                     , textLength
+                     , lineLength
                      ))
           end
       | (_, _) =>
           (* Can't move further leftward so just return. *)
           { idx = 0
+          , textLength = textLength
           , line = 0
+          , lineLength = lineLength
           , leftStrings = []
           , leftLines = []
           , rightStrings = rightStrings
@@ -2070,6 +2178,8 @@ struct
       , leftLines
       , rightStrings
       , rightLines
+      , textLength
+      , lineLength
       ) =
       if start > curIdx then
         moveRightAndDelete
@@ -2081,6 +2191,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       else if start < curIdx then
         if finish <= curIdx then
@@ -2093,6 +2205,8 @@ struct
             , leftLines
             , rightStrings
             , rightLines
+            , textLength
+            , lineLength
             )
         else
           deleteFromLetAndRight
@@ -2104,6 +2218,8 @@ struct
             , leftLines
             , rightStrings
             , rightLines
+            , textLength
+            , lineLength
             )
       else
         deleteRightFromHere
@@ -2115,6 +2231,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
   in
     fun delete (start, length, buffer: t) =
@@ -2128,6 +2246,8 @@ struct
           , #leftLines buffer
           , #rightStrings buffer
           , #rightLines buffer
+          , #textLength buffer
+          , #lineLength buffer
           )
       else
         buffer
@@ -3158,8 +3278,15 @@ struct
         val correctIdx = calcIndexStart (#leftStrings buffer)
         val idxIsCorrect = bufferIdx = correctIdx
 
+        val {rightLines, rightStrings, ...} = goToStart buffer
+
         val textLength = #textLength buffer
-        val textLengthIsCorrect = textLength = correctIdx
+        val textLengthIsCorrect =
+          textLength = String.size (String.concat rightStrings)
+
+        val lineLength = #lineLength buffer
+        val correctLineLength = Vector.length (Vector.concat rightLines)
+        val lineLengthIsCorrect = lineLength = correctLineLength
 
         val _ =
           if idxIsCorrect then
@@ -3180,7 +3307,7 @@ struct
 
         val _ =
           if textLengthIsCorrect then
-            print "textLength is correct"
+            print "textLength is correct\n"
           else
             let
               val msg = String.concat
@@ -3195,9 +3322,12 @@ struct
               print msg
             end
 
+        val () = print "\n"
       in
-        if textLengthIsCorrect andalso idxIsCorrect then ()
-        else raise Fail "either index or text length is incorrect"
+        if textLengthIsCorrect andalso idxIsCorrect andalso lineLengthIsCorrect then
+          ()
+        else
+          raise Fail "either index or idx metadata or text length is incorrect"
       end
   end
 end
