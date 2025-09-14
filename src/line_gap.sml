@@ -1092,6 +1092,8 @@ struct
     , line
     , leftLines
     , rightLines
+    , textLength
+    , lineLength
     ) =
     case (rightStrings, rightLines) of
       (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
@@ -1122,6 +1124,8 @@ struct
                    , line + Vector.length rLnHd
                    , newLlnHd :: lLnTl
                    , rLnTl
+                   , textLength
+                   , lineLength
                    )
                end
              else
@@ -1134,6 +1138,8 @@ struct
                  , line + Vector.length rLnHd
                  , rLnHd :: leftLines
                  , rLnTl
+                 , textLength
+                 , lineLength
                  )
          | (_, _) =>
              (* left side is empty; we are at start *)
@@ -1146,6 +1152,8 @@ struct
                , Vector.length rLnHd
                , [rLnHd]
                , rLnTl
+               , textLength
+               , lineLength
                ))
     | (_, _) =>
         (* we have reached the end, and right side is empty *)
@@ -1167,7 +1175,9 @@ struct
                      )
                in
                  { idx = idx + String.size newString
+                 , textLength = textLength
                  , line = line + Vector.length newLines
+                 , lineLength = lineLength
                  , leftStrings = newLstrHd :: lStrTl
                  , leftLines = newLlnHd :: lLnTl
                  , rightStrings = []
@@ -1176,7 +1186,9 @@ struct
                end
              else
                { idx = idx + String.size newString
+               , textLength = textLength
                , line = line + Vector.length newLines
+               , lineLength = lineLength
                , leftStrings = newString :: leftStrings
                , leftLines = newLines :: leftLines
                , rightStrings = []
@@ -1184,19 +1196,30 @@ struct
                }
          | (_, _) =>
              { idx = idx + String.size newString
+             , textLength = textLength
              , line = line + Vector.length newLines
+             , lineLength = lineLength
              , leftStrings = newString :: leftStrings
              , leftLines = newLines :: leftLines
              , rightStrings = []
              , rightLines = []
              })
 
-  fun append
-    ( newString
-    , {idx, line, leftStrings, leftLines, rightStrings, rightLines}: t
-    ) =
+  fun append (newString, buffer) =
     let
+      val
+        { idx
+        , line
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , textLength
+        , lineLength
+        } = buffer
+      val newTextLength = textLength + String.size newString
       val newLines = countLineBreaks newString
+      val newLineLength = lineLength + Vector.length newLines
     in
       helpGoToEndAndAppend
         ( newString
@@ -1207,6 +1230,8 @@ struct
         , line
         , leftLines
         , rightLines
+        , textLength
+        , lineLength
         )
     end
 
