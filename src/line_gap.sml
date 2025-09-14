@@ -3038,23 +3038,23 @@ struct
           goToStart (lsTl, llTl, lsHd :: accStrings, llHd :: accLines)
       | (_, _) => (accStrings, accLines)
 
-    fun verifyLineList (strings, lines) =
+    fun isLineListCorrect (strings, lines) =
       case (strings, lines) of
         (strHd :: strTl, lHd :: lTl) =>
           let
             val checkLines = countLineBreaks strHd
           in
             if checkLines = lHd then
-              verifyLineList (strTl, lTl)
+              isLineListCorrect (strTl, lTl)
             else
               let
                 val _ = print "line metadata is incorrect\n"
                 val _ = checkLineBreaks (lHd, checkLines)
               in
-                raise Empty
+                false
               end
           end
-      | (_, _) => print "verified lines; no problems\n"
+      | (_, _) => (print "verified lines; no problems\n"; true)
   in
     fun verifyLines (buffer: t) =
       let
@@ -3065,8 +3065,16 @@ struct
             , #rightStrings buffer
             , #rightLines buffer
             )
+
+        val lineListIsCorrect = isLineListCorrect (strings, lines)
+        val lineLengthIsCorrect = let val lines = Vector.concat lines
+                                  in Vector.length lines = #lineLength buffer
+                                  end
+        val () =
+          if lineLengthIsCorrect then () else print "line length is incorrect\n"
       in
-        verifyLineList (strings, lines)
+        if lineLengthIsCorrect andalso lineListIsCorrect then ()
+        else raise Fail ""
       end
   end
 
@@ -3082,9 +3090,13 @@ struct
       let
         val bufferIdx = #idx buffer
         val correctIdx = calcIndexStart (#leftStrings buffer)
+        val idxIsCorrect = bufferIdx = correctIdx
+
+        val textLength = #textLength buffer
+        val textLengthIsCorrect = textLength = correctIdx
 
         val _ =
-          if bufferIdx = correctIdx then
+          if idxIsCorrect then
             print "idx is correct\n"
           else
             let
@@ -3096,13 +3108,30 @@ struct
                 , Int.toString correctIdx
                 , "\n"
                 ]
-              val _ = print msg
-              val _ = raise Size
             in
               print msg
             end
+
+        val _ =
+          if textLengthIsCorrect then
+            print "textLength is correct"
+          else
+            let
+              val msg = String.concat
+                [ "text length is incorrect;"
+                , "text length: "
+                , Int.toString textLength
+                , "; correct length: "
+                , Int.toString correctIdx
+                , "\n"
+                ]
+            in
+              print msg
+            end
+
       in
-        ()
+        if textLengthIsCorrect andalso idxIsCorrect then ()
+        else raise Fail "either index or text length is incorrect"
       end
   end
 end
