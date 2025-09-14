@@ -2283,7 +2283,15 @@ struct
   end
 
   fun helpGoToStart
-    (idx, line, leftStrings, leftLines, rightStrings, rightLines) =
+    ( idx
+    , line
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , textLength
+    , lineLength
+    ) =
     case (leftStrings, leftLines) of
       (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
         (case (rightStrings, rightLines) of
@@ -2310,6 +2318,8 @@ struct
                    , lLnTl
                    , newRstrHd :: rStrTl
                    , newRlnHd :: rLnTl
+                   , textLength
+                   , lineLength
                    )
                end
              else
@@ -2320,6 +2330,8 @@ struct
                  , lLnTl
                  , lStrHd :: rightStrings
                  , lLnHd :: rightLines
+                 , textLength
+                 , lineLength
                  )
          | (_, _) =>
              (* rightStrings and rightLines are both empty *)
@@ -2330,22 +2342,56 @@ struct
                , lLnTl
                , [lStrHd]
                , [lLnHd]
+               , textLength
+               , lineLength
                ))
     | (_, _) =>
         (* left strings are empty, meaning we are at start and can return *)
         { idx = idx
+        , textLength = textLength
         , line = line
+        , lineLength = lineLength
         , leftStrings = []
         , leftLines = []
         , rightStrings = rightStrings
         , rightLines = rightLines
         }
 
-  fun goToStart
-    ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
-    helpGoToStart (idx, line, leftStrings, leftLines, rightStrings, rightLines)
+  fun goToStart (buffer: t) =
+    let
+      val
+        { idx
+        , line
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , textLength
+        , lineLength
+        } = buffer
+    in
+      helpGoToStart
+        ( idx
+        , line
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , textLength
+        , lineLength
+        )
+    end
 
-  fun helpGoToEnd (idx, line, leftStrings, leftLines, rightStrings, rightLines) =
+  fun helpGoToEnd
+    ( idx
+    , line
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , textLength
+    , lineLength
+    ) =
     case (rightStrings, rightLines) of
       (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
         (case (leftStrings, leftLines) of
@@ -2372,6 +2418,8 @@ struct
                    , newLlnHd :: lLnTl
                    , rStrTl
                    , rLnTl
+                   , textLength
+                   , lineLength
                    )
                end
              else
@@ -2382,6 +2430,8 @@ struct
                  , rLnHd :: leftLines
                  , rStrTl
                  , rLnTl
+                 , textLength
+                 , lineLength
                  )
          | (_, _) =>
              (* rightStrings and rightLines are both empty *)
@@ -2392,19 +2442,45 @@ struct
                , rLnHd :: leftLines
                , rStrTl
                , rLnTl
+               , textLength
+               , lineLength
                ))
     | (_, _) =>
         (* rightStrings strings are empty, meaning we are at end and can return *)
         { idx = idx
+        , textLength = textLength
         , line = line
+        , lineLength = lineLength
         , leftStrings = leftStrings
         , leftLines = leftLines
         , rightStrings = []
         , rightLines = []
         }
 
-  fun goToEnd ({idx, line, leftStrings, leftLines, rightStrings, rightLines}: t) =
-    helpGoToEnd (idx, line, leftStrings, leftLines, rightStrings, rightLines)
+  fun goToEnd (buffer: t) =
+    let
+      val
+        { idx
+        , line
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , textLength
+        , lineLength
+        } = buffer
+    in
+      helpGoToEnd
+        ( idx
+        , line
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , textLength
+        , lineLength
+        )
+    end
 
   (* function to abstract leftwards movement.
    * if the left hd and the right hd can be joined in one node
@@ -2432,6 +2508,8 @@ struct
     , lStrTl
     , lLnHd
     , lLnTl
+    , textLength
+    , lineLength
     , fGoLeft
     ) =
     case (rightStrings, rightLines) of
@@ -2459,6 +2537,8 @@ struct
               , lLnTl
               , newRstrHd :: rStrTl
               , newRlnHd :: rLnTl
+              , textLength
+              , lineLength
               )
           end
         else
@@ -2471,6 +2551,8 @@ struct
             , lLnTl
             , lStrHd :: rightStrings
             , lLnHd :: rightLines
+            , textLength
+            , lineLength
             )
     | (_, _) =>
         (* right side is empty, so just move left without joining *)
@@ -2482,6 +2564,8 @@ struct
           , lLnTl
           , [lStrHd]
           , [lLnHd]
+          , textLength
+          , lineLength
           )
 
   (* same as moveLeft function, except it move rightwards instead *)
@@ -2497,6 +2581,8 @@ struct
     , rStrTl
     , rLnHd
     , rLnTl
+    , textLength
+    , lineLength
     , fGoRight
     ) =
     case (leftStrings, leftLines) of
@@ -2524,6 +2610,8 @@ struct
               , newLlnHd :: lLnTl
               , rStrTl
               , rLnTl
+              , textLength
+              , lineLength
               )
           end
         else
@@ -2536,6 +2624,8 @@ struct
             , rLnHd :: leftLines
             , rStrTl
             , rLnTl
+            , textLength
+            , lineLength
             )
     | (_, _) =>
         (* left side is empty, so just move rightwards without joining *)
@@ -2547,16 +2637,29 @@ struct
           , [rLnHd]
           , rStrTl
           , rLnTl
+          , textLength
+          , lineLength
           )
 
   fun helpGoToLineLeft
-    (idx, line, searchLine, leftStrings, leftLines, rightStrings, rightLines) =
+    ( idx
+    , line
+    , searchLine
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , textLength
+    , lineLength
+    ) =
     case (leftStrings, leftLines) of
       (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
         if searchLine >= line - Vector.length lLnHd then
           (* line is at left head, so place it to the right and return *)
           { idx = idx - String.size lStrHd
+          , textLength = textLength
           , line = line - Vector.length lLnHd
+          , lineLength = lineLength
           , leftStrings = lStrTl
           , leftLines = lLnTl
           , rightStrings = lStrHd :: rightStrings
@@ -2576,12 +2679,16 @@ struct
             , lStrTl
             , lLnHd
             , lLnTl
+            , textLength
+            , lineLength
             , helpGoToLineLeft
             )
     | (_, _) =>
         (* left side is empty, so just return *)
         { idx = idx
+        , textLength = textLength
         , line = line
+        , lineLength = lineLength
         , leftStrings = []
         , leftLines = []
         , rightStrings = rightStrings
@@ -2589,13 +2696,24 @@ struct
         }
 
   fun helpGoToLineRight
-    (idx, line, searchLine, leftStrings, leftLines, rightStrings, rightLines) =
+    ( idx
+    , line
+    , searchLine
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , textLength
+    , lineLength
+    ) =
     case (rightStrings, rightLines) of
       (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
         if line + Vector.length rLnHd >= searchLine then
           (* searchLine is in rStrHd/rLnHd, so return *)
           { idx = idx
+          , textLength = textLength
           , line = line
+          , lineLength = lineLength
           , leftStrings = leftStrings
           , leftLines = leftLines
           , rightStrings = rightStrings
@@ -2615,12 +2733,16 @@ struct
             , rStrTl
             , rLnHd
             , rLnTl
+            , textLength
+            , lineLength
             , helpGoToLineRight
             )
     | (_, _) =>
         (* right side is empty, so just return *)
         { idx = idx
+        , textLength = textLength
         , line = line
+        , lineLength = lineLength
         , leftStrings = leftStrings
         , leftLines = leftLines
         , rightStrings = []
@@ -2629,7 +2751,16 @@ struct
 
   fun goToLine (searchLine, buffer: t) =
     let
-      val {idx, line, leftStrings, leftLines, rightStrings, rightLines} = buffer
+      val
+        { idx
+        , line
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , textLength
+        , lineLength
+        } = buffer
     in
       (* we compare current line with searchLine - 1
        * because if searchLine - 1 is here,
@@ -2644,6 +2775,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       else if searchLine - 1 > line then
         helpGoToLineRight
@@ -2654,13 +2787,24 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       else
         buffer
     end
 
   fun helpGoToIdxLeft
-    (idx, line, searchIdx, leftStrings, leftLines, rightStrings, rightLines) =
+    ( idx
+    , line
+    , searchIdx
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , textLength
+    , lineLength
+    ) =
     case (leftStrings, leftLines) of
       (lStrHd :: lStrTl, lLnHd :: lLnTl) =>
         if searchIdx < idx - String.size lStrHd then
@@ -2677,12 +2821,16 @@ struct
             , lStrTl
             , lLnHd
             , lLnTl
+            , textLength
+            , lineLength
             , helpGoToIdxLeft
             )
         else
           (* line is at left head, so place it to the right and return *)
           { idx = idx - String.size lStrHd
+          , textLength = textLength
           , line = line - Vector.length lLnHd
+          , lineLength = lineLength
           , leftStrings = lStrTl
           , leftLines = lLnTl
           , rightStrings = lStrHd :: rightStrings
@@ -2691,7 +2839,9 @@ struct
     | (_, _) =>
         (* left side is empty, so just return *)
         { idx = idx
+        , textLength = textLength
         , line = line
+        , lineLength = lineLength
         , leftStrings = []
         , leftLines = []
         , rightStrings = rightStrings
@@ -2699,7 +2849,16 @@ struct
         }
 
   fun helpGoToIdxRight
-    (idx, line, searchIdx, leftStrings, leftLines, rightStrings, rightLines) =
+    ( idx
+    , line
+    , searchIdx
+    , leftStrings
+    , leftLines
+    , rightStrings
+    , rightLines
+    , textLength
+    , lineLength
+    ) =
     case (rightStrings, rightLines) of
       (rStrHd :: rStrTl, rLnHd :: rLnTl) =>
         if searchIdx > idx + String.size rStrHd then
@@ -2716,12 +2875,16 @@ struct
             , rStrTl
             , rLnHd
             , rLnTl
+            , textLength
+            , lineLength
             , helpGoToIdxRight
             )
         else
           (* searchLine is in rStrHd/rLnHd, so return *)
           { idx = idx
+          , textLength = textLength
           , line = line
+          , lineLength = lineLength
           , leftStrings = leftStrings
           , leftLines = leftLines
           , rightStrings = rightStrings
@@ -2730,7 +2893,9 @@ struct
     | (_, _) =>
         (* right side is empty, so just return *)
         { idx = idx
+        , textLength = textLength
         , line = line
+        , lineLength = lineLength
         , leftStrings = leftStrings
         , leftLines = leftLines
         , rightStrings = []
@@ -2739,7 +2904,16 @@ struct
 
   fun goToIdx (searchIdx, buffer: t) =
     let
-      val {idx, line, leftStrings, leftLines, rightStrings, rightLines} = buffer
+      val
+        { idx
+        , line
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , textLength
+        , lineLength
+        } = buffer
     in
       if searchIdx < idx then
         helpGoToIdxLeft
@@ -2750,6 +2924,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       else if searchIdx > idx then
         helpGoToIdxRight
@@ -2760,6 +2936,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       else
         buffer
@@ -2826,6 +3004,7 @@ struct
         , rightStrings
         , rightLines
         , line = curLine
+        , ...
         } = buffer
     in
       if findIdx < curIdx then
