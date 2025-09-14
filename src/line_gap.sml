@@ -2,10 +2,12 @@ signature LINE_GAP =
 sig
   type t =
     { idx: int
+    , textLength: int
     , leftStrings: string list
     , rightStrings: string list
 
     , line: int
+    , lineLength: int
     , leftLines: int vector list
     , rightLines: int vector list
     }
@@ -70,10 +72,12 @@ struct
 
   type t =
     { idx: int
+    , textLength: int
     , leftStrings: string list
     , rightStrings: string list
 
     , line: int
+    , lineLength: int
     , leftLines: int vector list
     , rightLines: int vector list
     }
@@ -83,21 +87,29 @@ struct
 
   val empty =
     { idx = 0
+    , textLength = 0
     , leftStrings = []
     , rightStrings = []
     , line = 0
+    , lineLength = 0
     , leftLines = []
     , rightLines = []
     }
 
   fun fromString str =
-    { idx = 0
-    , leftStrings = []
-    , rightStrings = [str]
-    , line = 0
-    , leftLines = []
-    , rightLines = [countLineBreaks str]
-    }
+    let
+      val linebreaks = countLineBreaks str
+    in
+      { idx = 0
+      , textLength = String.size str
+      , leftStrings = []
+      , rightStrings = [str]
+      , line = 0
+      , lineLength = Vector.length linebreaks
+      , leftLines = []
+      , rightLines = [linebreaks]
+      }
+    end
 
   local
     fun helpToString (acc, input) =
@@ -204,6 +216,8 @@ struct
       , leftLines
       , rightStrings
       , rightLines
+      , textLength
+      , lineLength
       ) : t =
       case (leftStrings, leftLines) of
         (strHd :: strTl, lineHd :: lineTl) =>
@@ -228,7 +242,9 @@ struct
               val newLeftLines = newLinesHd :: lineTl
             in
               { idx = newIdx
+              , textLength = textLength
               , line = newLine
+              , lineLength = lineLength
               , leftStrings = newLeftString
               , leftLines = newLeftLines
               , rightStrings = rightStrings
@@ -238,7 +254,9 @@ struct
           else
             (* Does not fit in limit, so cons instead.*)
             { idx = curIdx + String.size newString
+            , textLength = textLength
             , line = curLine + Vector.length newLines
+            , lineLength = lineLength
             , leftStrings = newString :: leftStrings
             , leftLines = newLines :: leftLines
             , rightStrings = rightStrings
@@ -252,7 +270,9 @@ struct
            * So we don't need to perform addition or consing.
            *)
           { idx = String.size newString
+          , textLength = textLength
           , line = Vector.length newLines
+          , lineLength = lineLength
           , leftStrings = [newString]
           , leftLines = [newLines]
           , rightStrings = rightStrings
@@ -274,6 +294,8 @@ struct
       , leftStringsTl
       , leftLinesHd
       , leftLinesTl
+      , textLength
+      , lineLength
       ) : t =
       if idx = prevIdx then
         (* Need to insert at the start of the left list. *)
@@ -292,7 +314,9 @@ struct
                 )
           in
             { idx = curIdx + String.size newString
+            , textLength = textLength
             , line = curLine + Vector.length newLines
+            , lineLength = lineLength
             , leftStrings = (newString ^ leftStringsHd) :: leftStringsTl
             , leftLines = joinedLines :: leftLinesTl
             , rightStrings = rightStrings
@@ -302,7 +326,9 @@ struct
         else
           (* Just cons everything; no way we can join while staying in limit. *)
           { idx = curIdx + String.size newString
+          , textLength = textLength
           , line = curLine + Vector.length newLines
+          , lineLength = lineLength
           , leftStrings = leftStringsHd :: newString :: leftStringsTl
           , leftLines = leftLinesHd :: newLines :: leftLinesTl
           , rightStrings = rightStrings
@@ -343,7 +369,9 @@ struct
                   Vector.map (fn el => el + String.size strSub1) newLines
             in
               { idx = curIdx + String.size newString
+              , textLength = textLength
               , line = curLine + Vector.length newLines
+              , lineLength = lineLength
               , leftStrings = joinedString :: leftStringsTl
               , leftLines = joinedLines :: leftLinesTl
               , rightStrings = rightStrings
@@ -377,9 +405,11 @@ struct
                     )
               in
                 { idx = prevIdx + String.size strSub1 + String.size newString
+                , textLength = textLength
                 , line =
                     (curLine - Vector.length leftLinesHd)
                     + Vector.length newLeftLines
+                , lineLength = lineLength
                 , leftStrings = (strSub1 ^ newString) :: leftStringsTl
                 , leftLines = newLeftLines :: leftLinesTl
                 , rightStrings = strSub2 :: rightStrings
@@ -395,9 +425,11 @@ struct
                   Vector.map (fn idx => idx - String.size strSub1) leftLinesHd
               in
                 { idx = prevIdx + String.size strSub1 + String.size newString
+                , textLength = textLength
                 , line =
                     (curLine - Vector.length leftLinesHd)
                     + Vector.length newLeftLines
+                , lineLength = lineLength
                 , leftStrings = (strSub1 ^ newString) :: leftStringsTl
                 , leftLines = newLeftLines :: leftLinesTl
                 , rightStrings = strSub2 :: rightStrings
@@ -440,7 +472,9 @@ struct
                   )
             in
               { idx = prevIdx + String.size strSub1
+              , textLength = textLength
               , line = (curLine - Vector.length leftLinesHd) + midpoint
+              , lineLength = lineLength
               , leftStrings = strSub1 :: leftStringsTl
               , leftLines = newLeftLines :: leftLinesTl
               , rightStrings = (newString ^ strSub2) :: rightStrings
@@ -468,9 +502,11 @@ struct
                 - String.size strSub1)
             in
               { idx = prevIdx + String.size strSub1 + String.size newString
+              , textLength = textLength
               , line =
                   (curLine - String.size leftStringsHd) + midpoint
                   + Vector.length newLines
+              , lineLength = lineLength
               , leftStrings = newString :: strSub1 :: leftStringsTl
               , leftLines = newLines :: lineSub1 :: leftLinesTl
               , rightStrings = strSub2 :: rightStrings
@@ -489,6 +525,8 @@ struct
       , leftLines
       , rightStrings
       , rightLines
+      , textLength
+      , lineLength
       ) =
       case (leftStrings, leftLines) of
         (leftStringsHd :: leftStringsTl, leftLinesHd :: leftLinesTl) =>
@@ -543,6 +581,8 @@ struct
                          , leftLinesTl
                          , newRightStringsHd :: rightStringsTl
                          , newRightLinesHd :: rightLinesTl
+                         , textLength
+                         , lineLength
                          )
                      end
                    else
@@ -556,6 +596,8 @@ struct
                        , leftLinesTl
                        , leftStringsHd :: rightStrings
                        , leftLinesHd :: rightLines
+                       , textLength
+                       , lineLength
                        )
                | (_, _) =>
                    moveLeftAndIns
@@ -568,6 +610,8 @@ struct
                      , leftLinesTl
                      , leftStringsHd :: rightStrings
                      , leftLinesHd :: rightLines
+                     , textLength
+                     , lineLength
                      ))
             else
               (* Insertion is somewhere between the head of the left list,
@@ -587,13 +631,17 @@ struct
                 , leftStringsTl
                 , leftLinesHd
                 , leftLinesTl
+                , textLength
+                , lineLength
                 )
           end
       | (_, _) =>
           (* Left list is empty, so need to cons or join.
            * Just set left string/list as newString/newLines. *)
           { idx = String.size newString
+          , textLength = textLength
           , line = Vector.length newLines
+          , lineLength = lineLength
           , leftStrings = [newString]
           , leftLines = [newLines]
           , rightStrings = rightStrings
@@ -615,6 +663,8 @@ struct
       , rightStringsTl
       , rightLinesHd: int vector
       , rightLinesTl
+      , textLength
+      , lineLength
       ) : t =
       if idx = nextIdx then
         (* Need to put newString/newLines at the end of the right list's hd. *)
@@ -634,7 +684,9 @@ struct
                 )
           in
             { idx = curIdx
+            , textLength = textLength
             , line = curLine
+            , lineLength = lineLength
             , leftStrings = leftStrings
             , leftLines = leftLines
             , rightStrings = newRightStringsHd :: rightStringsTl
@@ -645,7 +697,9 @@ struct
           (* Cons newString and newLines to after-the-head,
            * because we can't join while staying in the limit.*)
           { idx = curIdx
+          , textLength = textLength
           , line = curLine
+          , lineLength = lineLength
           , leftStrings = leftStrings
           , leftLines = leftLines
           , rightStrings = rightStringsHd :: newString :: rightStringsTl
@@ -686,7 +740,9 @@ struct
                   Vector.map (fn el => el + String.size strSub1) newLines
             in
               { idx = curIdx
+              , textLength = textLength
               , line = curLine
+              , lineLength = lineLength
               , leftStrings = leftStrings
               , leftLines = leftLines
               , rightStrings = newRightStringsHd :: rightStringsTl
@@ -721,7 +777,9 @@ struct
                     )
               in
                 { idx = curIdx + String.size newLeftStringsHd
+                , textLength = textLength
                 , line = curLine + Vector.length newLeftLinesHd
+                , lineLength = lineLength
                 , leftStrings = newLeftStringsHd :: leftStrings
                 , leftLines = newLeftLinesHd :: leftLines
                 , rightStrings = strSub2 :: rightStringsTl
@@ -738,7 +796,9 @@ struct
                   Vector.map (fn idx => idx - String.size strSub1) rightLinesHd
               in
                 { idx = curIdx + String.size newLeftStringsHd
+                , textLength = textLength
                 , line = curLine + Vector.length newLeftLinesHd
+                , lineLength = lineLength
                 , leftStrings = newLeftStringsHd :: leftStrings
                 , leftLines = newLeftLinesHd :: leftLines
                 , rightStrings = strSub2 :: rightStringsTl
@@ -782,7 +842,9 @@ struct
                   )
             in
               { idx = curIdx + String.size strSub1
+              , textLength = textLength
               , line = curLine + Vector.length newLeftLinesHd
+              , lineLength = lineLength
               , leftStrings = strSub1 :: leftStrings
               , leftLines = newLeftLinesHd :: leftLines
               , rightStrings = newRightStringsHd :: rightStringsTl
@@ -810,7 +872,9 @@ struct
                 - String.size strSub1)
             in
               { idx = curIdx + String.size strSub1 + String.size newString
+              , textLength = textLength
               , line = curLine + Vector.length newLines + Vector.length lineSub1
+              , lineLength = lineLength
               , leftStrings = newString :: strSub1 :: leftStrings
               , leftLines = newLines :: lineSub1 :: leftLines
               , rightStrings = strSub2 :: rightStringsTl
@@ -829,6 +893,8 @@ struct
       , leftLines
       , rightStrings
       , rightLines
+      , textLength
+      , lineLength
       ) =
       case (rightStrings, rightLines) of
         (rightStringsHd :: rightStringsTl, rightLinesHd :: rightLinesTl) =>
@@ -874,6 +940,8 @@ struct
                          , newLeftLinesHd :: leftLinesTl
                          , rightStringsTl
                          , rightLinesTl
+                         , textLength
+                         , lineLength
                          )
                      end
                    else
@@ -887,6 +955,8 @@ struct
                        , rightLinesHd :: leftLines
                        , rightStringsTl
                        , rightLinesTl
+                       , textLength
+                       , lineLength
                        )
                | (_, _) =>
                    moveRightAndIns
@@ -899,6 +969,8 @@ struct
                      , rightLinesHd :: leftLines
                      , rightStringsTl
                      , rightLinesTl
+                     , textLength
+                     , lineLength
                      ))
             else
               (* Need to insert in the middle of the right string's hd. *)
@@ -917,12 +989,16 @@ struct
                 , rightStringsTl
                 , rightLinesHd
                 , rightLinesTl
+                , textLength
+                , lineLength
                 )
           end
       | (_, _) =>
           (* Right string/line is empty. *)
           { idx = curIdx
+          , textLength = textLength
           , line = curLine
+          , lineLength = lineLength
           , leftStrings = leftStrings
           , leftLines = leftLines
           , rightStrings = [newString]
@@ -939,6 +1015,8 @@ struct
       , leftLines
       , rightStrings
       , rightLines
+      , textLength
+      , lineLength
       ) : t =
       if curIdx = idx then
         insWhenIdxAndCurIdxAreEqual
@@ -950,6 +1028,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       else if idx < curIdx then
         moveLeftAndIns
@@ -962,6 +1042,8 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
       else
         (* idx > curIdx. *)
@@ -975,11 +1057,15 @@ struct
           , leftLines
           , rightStrings
           , rightLines
+          , textLength
+          , lineLength
           )
   in
     fun insert (idx, newString, buffer: t) =
       let
         val newLines = countLineBreaks newString
+        val newTextLength = #textLength buffer + String.size newString
+        val newLineLength = #lineLength buffer + Vector.length newLines
       in
         ins
           ( idx
@@ -991,6 +1077,8 @@ struct
           , #leftLines buffer
           , #rightStrings buffer
           , #rightLines buffer
+          , newTextLength
+          , newLineLength
           )
       end
   end
