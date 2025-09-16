@@ -1230,8 +1230,8 @@ struct
         , line
         , leftLines
         , rightLines
-        , textLength
-        , lineLength
+        , newTextLength
+        , newLineLength
         )
     end
 
