@@ -30,7 +30,7 @@ sig
   val goToIdx: int * t -> t
   val goToLine: int * t -> t
 
-  val getLineNumberOfIdx: int * t -> int
+  val idxToLineNumber: int * t -> int
 
   (* for testing *)
   val verifyIndex: t -> unit
@@ -3136,7 +3136,7 @@ struct
         buffer
     end
 
-  fun getLineNumberLeft (findIdx, curIdx, curLine, leftStrings, leftLines) =
+  fun idxToLineNumberLeft (findIdx, curIdx, curLine, leftStrings, leftLines) =
     case (leftStrings, leftLines) of
       (shd :: stl, lhd :: ltl) =>
         let
@@ -3158,12 +3158,12 @@ struct
               end
           else
             let val prevLine = curLine - Vector.length lhd
-            in getLineNumberLeft (findIdx, prevIdx, prevLine, stl, ltl)
+            in idxToLineNumberLeft (findIdx, prevIdx, prevLine, stl, ltl)
             end
         end
     | (_, _) => 0
 
-  fun getLineNumberRight (findIdx, curIdx, curLine, rightStrings, rightLines) =
+  fun idxToLineNumberRight (findIdx, curIdx, curLine, rightStrings, rightLines) =
     case (rightStrings, rightLines) of
       (shd :: stl, lhd :: ltl) =>
         let
@@ -3183,12 +3183,12 @@ struct
               end
           else
             let val nextLine = curLine + Vector.length lhd
-            in getLineNumberRight (findIdx, nextIdx, nextLine, stl, ltl)
+            in idxToLineNumberRight (findIdx, nextIdx, nextLine, stl, ltl)
             end
         end
     | (_, _) => curLine
 
-  fun getLineNumberOfIdx (findIdx, buffer: t) =
+  fun idxToLineNumber (findIdx, buffer: t) =
     let
       val
         { idx = curIdx
@@ -3201,9 +3201,10 @@ struct
         } = buffer
     in
       if findIdx < curIdx then
-        getLineNumberLeft (findIdx, curIdx, curLine, leftStrings, leftLines)
+        idxToLineNumberLeft (findIdx, curIdx, curLine, leftStrings, leftLines)
       else if findIdx > curIdx then
-        getLineNumberRight (findIdx, curIdx, curLine, rightStrings, rightLines)
+        idxToLineNumberRight
+          (findIdx, curIdx, curLine, rightStrings, rightLines)
       else
         curLine
     end
