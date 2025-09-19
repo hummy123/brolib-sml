@@ -31,6 +31,7 @@ sig
   val goToLine: int * t -> t
 
   val idxToLineNumber: int * t -> int
+  val lineNumberToIdx: int * t -> int
 
   (* for testing *)
   val verifyIndex: t -> unit
@@ -3207,6 +3208,62 @@ struct
           (findIdx, curIdx, curLine, rightStrings, rightLines)
       else
         curLine
+    end
+
+  fun lineNumberToIdxLeft (findLine, curIdx, curLine, leftStrings, leftLines) =
+    case (leftStrings, leftLines) of
+      (shd :: stl, lhd :: ltl) =>
+        let
+          val prevLine = curLine - Vector.length lhd
+          val prevIdx = curIdx - String.size shd
+        in
+          if findLine >= prevLine then
+            let val relativeLine = findLine - prevLine - 1
+            in Vector.sub (lhd, relativeLine) + prevIdx
+            end
+          else
+            lineNumberToIdxLeft (findLine, prevIdx, prevLine, stl, ltl)
+        end
+    | (_, _) => 0
+
+  fun lineNumberToIdxRight (findLine, curIdx, curLine, rightStrings, rightLines) =
+    case (rightStrings, rightLines) of
+      (shd :: stl, lhd :: ltl) =>
+        let
+          val nextLine = curLine + Vector.length hd
+        in
+          if findLine <= nextLine then
+            let val relativeLine = findLine - curLine - 1
+            in Vector.sub (lhd, relativeLine) + curIdx
+            end
+          else
+            lineNumberToIdxRight
+              ( findLine
+              , curIdx + String.size shd
+              , nextLine
+              , rightStrings
+              , rightLines
+              )
+        end
+    | (_, _) => curIdx
+
+  fun lineNumberToIdx (findLine, buffer: t) =
+    let
+      val
+        { idx = curIdx
+        , line = curLine
+        , leftStrings
+        , leftLines
+        , rightStrings
+        , rightLines
+        , ...
+        } = buffer
+    in
+      if findLine - 1 < curLine then
+        lineNumberToIdxLeft (findLine, curIdx, curLine, leftStrings, leftLines)
+      else
+        lineNumberToIdxRight
+          (findLine, curIdx, curLine, rightStrings, rightLines)
     end
 
   (* TEST CODE *)
