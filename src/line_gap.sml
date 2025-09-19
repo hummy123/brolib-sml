@@ -3230,7 +3230,7 @@ struct
     case (rightStrings, rightLines) of
       (shd :: stl, lhd :: ltl) =>
         let
-          val nextLine = curLine + Vector.length hd
+          val nextLine = curLine + Vector.length lhd
         in
           if findLine <= nextLine then
             let val relativeLine = findLine - curLine - 1
