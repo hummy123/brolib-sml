@@ -3238,12 +3238,7 @@ struct
             end
           else
             lineNumberToIdxRight
-              ( findLine
-              , curIdx + String.size shd
-              , nextLine
-              , rightStrings
-              , rightLines
-              )
+              (findLine, curIdx + String.size shd, nextLine, stl, ltl)
         end
     | (_, _) => curIdx
 
