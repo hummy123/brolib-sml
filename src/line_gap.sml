@@ -1336,14 +1336,14 @@ struct
               }
           end
       | (_, _) =>
-          { idx = 0
+          { idx = origIdx
           , textLength = textLength
-          , line = 0
+          , line = origLine
           , lineLength = lineLength
-          , leftStrings = []
-          , leftLines = []
-          , rightStrings = rightStrings
-          , rightLines = rightLines
+          , leftStrings = leftStrings
+          , leftLines = leftLines
+          , rightStrings = []
+          , rightLines = []
           }
 
     fun moveRightAndDelete
