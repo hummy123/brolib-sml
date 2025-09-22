@@ -2694,8 +2694,6 @@ struct
     ( idx
     , line
     , searchTo
-    , leftStrings
-    , leftLines
     , rightStrings
     , rightLines
     , lStrHd
@@ -2769,8 +2767,6 @@ struct
     , searchTo
     , leftStrings
     , leftLines
-    , rightStrings
-    , rightLines
     , rStrHd
     , rStrTl
     , rLnHd
@@ -2865,8 +2861,6 @@ struct
             ( idx
             , line
             , searchLine
-            , leftStrings
-            , leftLines
             , rightStrings
             , rightLines
             , lStrHd
@@ -2921,8 +2915,6 @@ struct
             , searchLine
             , leftStrings
             , leftLines
-            , rightStrings
-            , rightLines
             , rStrHd
             , rStrTl
             , rLnHd
@@ -3007,8 +2999,6 @@ struct
             ( idx
             , line
             , searchIdx
-            , leftStrings
-            , leftLines
             , rightStrings
             , rightLines
             , lStrHd
@@ -3063,8 +3053,6 @@ struct
             , searchIdx
             , leftStrings
             , leftLines
-            , rightStrings
-            , rightLines
             , rStrHd
             , rStrTl
             , rLnHd
