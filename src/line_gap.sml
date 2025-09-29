@@ -2263,10 +2263,10 @@ struct
   end
 
   fun subRight (findIdx, curIdx, hd, tl) =
-    if findIdx > curIdx + String.size hd then
+    if findIdx > curIdx + String.size hd - 1 then
       case tl of
         hd :: tl =>
-          if findIdx > curIdx + String.size hd then
+          if findIdx > curIdx + String.size hd - 1 then
             subRight (findIdx, curIdx + String.size hd, hd, tl)
           else
             let val strIdx = findIdx - curIdx
@@ -2301,13 +2301,13 @@ struct
       end
 
   fun sub (findIdx, buffer: t) =
-    if findIdx < #idx buffer then
-      case #leftStrings buffer of
-        hd :: tl => subLeft (findIdx, #idx buffer, hd, tl)
-      | [] => raise Fail "not found"
-    else
+    if findIdx >= #idx buffer then
       case #rightStrings buffer of
         hd :: tl => subRight (findIdx, #idx buffer, hd, tl)
+      | [] => raise Fail "not found"
+    else
+      case #leftStrings buffer of
+        hd :: tl => subLeft (findIdx, #idx buffer, hd, tl)
       | [] => raise Fail "not found"
 
   local
