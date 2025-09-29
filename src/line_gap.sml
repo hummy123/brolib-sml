@@ -17,6 +17,7 @@ sig
   val fromString: string -> t
   val toString: t -> string
 
+  val sub: int * t -> char
   val substring: int * int * t -> string
   val nullSubstring: int * int * t -> string
   val substringWithEnd: int * int * t * string -> string
@@ -2260,6 +2261,41 @@ struct
       else
         buffer
   end
+
+  fun subRight (findIdx, curIdx, tl) =
+    if findIdx > curIdx then
+      case tl of
+        hd :: tl =>
+          if findIdx > curIdx + String.size hd then
+            subRight (findIdx, curIdx + String.size hd, tl)
+          else
+            let val strIdx = findIdx - curIdx
+            in String.sub (hd, strIdx)
+            end
+      | [] => raise Fail "not found"
+    else
+      raise Fail "not found"
+
+  fun subLeft (findIdx, curIdx, tl) =
+    if findIdx < curIdx then
+      case tl of
+        hd :: tl =>
+          if findIdx < curIdx - String.size hd then
+            subLeft (findIdx, curIdx - String.size hd, tl)
+          else
+            let
+              val prevIdx = curIdx - String.size hd
+              val strIdx = findIdx - prevIdx
+            in
+              String.sub (hd, strIdx)
+            end
+      | [] => raise Fail "not found"
+    else
+      raise Fail "not found"
+
+  fun sub (findIdx, buffer: t) =
+    if findIdx < #idx buffer then 0
+    else subRight (findIdx, #idx buffer, #rightStrings buffer)
 
   local
     fun consIfNotEmpty (s, acc) =
