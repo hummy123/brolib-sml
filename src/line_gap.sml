@@ -2294,8 +2294,10 @@ struct
       raise Fail "not found"
 
   fun sub (findIdx, buffer: t) =
-    if findIdx < #idx buffer then 0
-    else subRight (findIdx, #idx buffer, #rightStrings buffer)
+    if findIdx < #idx buffer then
+      subLeft (findIdx, #idx buffer, #leftStrings buffer)
+    else
+      subRight (findIdx, #idx buffer, #rightStrings buffer)
 
   local
     fun consIfNotEmpty (s, acc) =
