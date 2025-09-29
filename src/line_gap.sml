@@ -2262,26 +2262,28 @@ struct
         buffer
   end
 
-  fun subRight (findIdx, curIdx, tl) =
-    if findIdx > curIdx then
+  fun subRight (findIdx, curIdx, hd, tl) =
+    if findIdx > curIdx + String.size hd then
       case tl of
         hd :: tl =>
           if findIdx > curIdx + String.size hd then
-            subRight (findIdx, curIdx + String.size hd, tl)
+            subRight (findIdx, curIdx + String.size hd, hd, tl)
           else
             let val strIdx = findIdx - curIdx
             in String.sub (hd, strIdx)
             end
       | [] => raise Fail "not found"
     else
-      raise Fail "not found"
+      let val strIdx = findIdx - curIdx
+      in String.sub (hd, strIdx)
+      end
 
-  fun subLeft (findIdx, curIdx, tl) =
-    if findIdx < curIdx then
+  fun subLeft (findIdx, curIdx, hd, tl) =
+    if findIdx < curIdx - String.size hd then
       case tl of
         hd :: tl =>
           if findIdx < curIdx - String.size hd then
-            subLeft (findIdx, curIdx - String.size hd, tl)
+            subLeft (findIdx, curIdx - String.size hd, hd, tl)
           else
             let
               val prevIdx = curIdx - String.size hd
@@ -2291,13 +2293,22 @@ struct
             end
       | [] => raise Fail "not found"
     else
-      raise Fail "not found"
+      let
+        val prevIdx = curIdx - String.size hd
+        val strIdx = findIdx - prevIdx
+      in
+        String.sub (hd, strIdx)
+      end
 
   fun sub (findIdx, buffer: t) =
     if findIdx < #idx buffer then
-      subLeft (findIdx, #idx buffer, #leftStrings buffer)
+      case #leftStrings buffer of
+        hd :: tl => subLeft (findIdx, #idx buffer, hd, tl)
+      | [] => raise Fail "not found"
     else
-      subRight (findIdx, #idx buffer, #rightStrings buffer)
+      case #rightStrings buffer of
+        hd :: tl => subRight (findIdx, #idx buffer, hd, tl)
+      | [] => raise Fail "not found"
 
   local
     fun consIfNotEmpty (s, acc) =
