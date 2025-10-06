@@ -1971,79 +1971,128 @@ struct
                     )
                 end
               else if prevIdx < start then
-                (* We want to delete in the middle of leftStringsHd. 
-                 * We also have to delete in the middle of leftLinesHd in order to
-                 * do this. *)
-                let
-                  val oldNodeTextLength = String.size leftStringsHd
-                  val oldNodeLineLength = Vector.length leftLinesHd
+                if finish >= curIdx then
+                  (* delete from end of string *)
+                  let
+                    val oldNodeTextLength = String.size leftStringsHd
+                    val oldNodeLineLength = Vector.length leftLinesHd
 
-                  val sub1Length = start - prevIdx
-                  val sub1 = String.substring (leftStringsHd, 0, sub1Length)
-                  val sub2Start = finish - prevIdx
-                  val sub2 = String.substring
-                    ( leftStringsHd
-                    , sub2Start
-                    , String.size leftStringsHd - sub2Start
-                    )
+                    val sub1Length = start - prevIdx
+                    val sub1 = String.substring (leftStringsHd, 0, sub1Length)
+                    val sub1Lines =
+                      if Vector.length leftLinesHd > 0 then
+                        let
+                          val midpoint = binSearch
+                            (String.size sub1 - 1, leftLinesHd)
+                        in
+                          if midpoint >= 0 then
+                            let
+                              val slice = VectorSlice.slice
+                                (leftLinesHd, 0, SOME (midpoint + 1))
+                            in
+                              VectorSlice.vector slice
+                            end
+                          else
+                            Vector.fromList []
+                        end
+                      else
+                        leftLinesHd
+                    val newNodeTextLength = String.size sub1
+                    val textLengthDifference =
+                      oldNodeTextLength - newNodeTextLength
+                    val textLength = textLength - textLengthDifference
 
-                  val sub1Lines =
-                    if Vector.length leftLinesHd > 0 then
+                    val newNodeLineLength = Vector.length sub1Lines
+                    val lineLengthDifference =
+                      oldNodeLineLength - newNodeLineLength
+                    val lineLength = lineLength - lineLengthDifference
+                  in
+                    { idx = prevIdx + String.size sub1
+                    , line =
+                        (curLine - Vector.length leftLinesHd)
+                        + Vector.length sub1Lines
+                    , leftStrings = sub1 :: leftStringsTl
+                    , leftLines = sub1Lines :: leftLinesTl
+                    , rightStrings = rightStrings
+                    , rightLines = rightLines
+                    , textLength = textLength
+                    , lineLength = lineLength
+                    }
+                  end
+                else
+                  (* We want to delete in the middle of leftStringsHd. 
+                   * We also have to delete in the middle of leftLinesHd in order to
+                   * do this. *)
+                  let
+                    val oldNodeTextLength = String.size leftStringsHd
+                    val oldNodeLineLength = Vector.length leftLinesHd
+
+                    val sub1Length = start - prevIdx
+                    val sub1 = String.substring (leftStringsHd, 0, sub1Length)
+                    val sub2Start = finish - prevIdx
+                    val sub2 = String.substring
+                      ( leftStringsHd
+                      , sub2Start
+                      , String.size leftStringsHd - sub2Start
+                      )
+
+                    val sub1Lines =
+                      if Vector.length leftLinesHd > 0 then
+                        let
+                          val midpoint = binSearch
+                            (String.size sub1 - 1, leftLinesHd)
+                        in
+                          if midpoint >= 0 then
+                            let
+                              val slice = VectorSlice.slice
+                                (leftLinesHd, 0, SOME (midpoint + 1))
+                            in
+                              VectorSlice.vector slice
+                            end
+                          else
+                            Vector.fromList []
+                        end
+                      else
+                        leftLinesHd
+
+                    val sub2Lines =
                       let
-                        val midpoint = binSearch
-                          (String.size sub1 - 1, leftLinesHd)
+                        val midpoint = forwardBinSearch (sub2Start, leftLinesHd)
                       in
-                        if midpoint >= 0 then
-                          let
-                            val slice = VectorSlice.slice
-                              (leftLinesHd, 0, SOME (midpoint + 1))
-                          in
-                            VectorSlice.vector slice
-                          end
+                        if midpoint < Vector.length leftLinesHd then
+                          Vector.tabulate
+                            ( Vector.length leftLinesHd - midpoint
+                            , fn idx =>
+                                Vector.sub (leftLinesHd, idx + midpoint)
+                                - sub2Start
+                            )
                         else
                           Vector.fromList []
                       end
-                    else
-                      leftLinesHd
 
-                  val sub2Lines =
-                    let
-                      val midpoint = forwardBinSearch (sub2Start, leftLinesHd)
-                    in
-                      if midpoint < Vector.length leftLinesHd then
-                        Vector.tabulate
-                          ( Vector.length leftLinesHd - midpoint
-                          , fn idx =>
-                              Vector.sub (leftLinesHd, idx + midpoint)
-                              - sub2Start
-                          )
-                      else
-                        Vector.fromList []
-                    end
+                    val newNodeTextLength = String.size sub1 + String.size sub2
+                    val textLengthDifference =
+                      oldNodeTextLength - newNodeTextLength
+                    val textLength = textLength - textLengthDifference
 
-                  val newNodeTextLength = String.size sub1 + String.size sub2
-                  val textLengthDifference =
-                    oldNodeTextLength - newNodeTextLength
-                  val textLength = textLength - textLengthDifference
-
-                  val newNodeLineLength =
-                    Vector.length sub1Lines + Vector.length sub2Lines
-                  val lineLengthDifference =
-                    oldNodeLineLength - newNodeLineLength
-                  val lineLength = lineLength - lineLengthDifference
-                in
-                  { idx = prevIdx + String.size sub1
-                  , line =
-                      (curLine - Vector.length leftLinesHd)
-                      + Vector.length sub1Lines
-                  , leftStrings = sub1 :: leftStringsTl
-                  , leftLines = sub1Lines :: leftLinesTl
-                  , rightStrings = sub2 :: rightStrings
-                  , rightLines = sub2Lines :: rightLines
-                  , textLength = textLength
-                  , lineLength = lineLength
-                  }
-                end
+                    val newNodeLineLength =
+                      Vector.length sub1Lines + Vector.length sub2Lines
+                    val lineLengthDifference =
+                      oldNodeLineLength - newNodeLineLength
+                    val lineLength = lineLength - lineLengthDifference
+                  in
+                    { idx = prevIdx + String.size sub1
+                    , line =
+                        (curLine - Vector.length leftLinesHd)
+                        + Vector.length sub1Lines
+                    , leftStrings = sub1 :: leftStringsTl
+                    , leftLines = sub1Lines :: leftLinesTl
+                    , rightStrings = sub2 :: rightStrings
+                    , rightLines = sub2Lines :: rightLines
+                    , textLength = textLength
+                    , lineLength = lineLength
+                    }
+                  end
               else
                 (* prevIdx = start 
                  * We want to delete from the start of this string and stop. *)
