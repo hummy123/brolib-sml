@@ -40,6 +40,7 @@ sig
   val makeStringIterator: t -> string_iterator
   val moveIteratorToIdx: int * string_iterator -> string_iterator
   val subIterator: int * string_iterator -> char
+  val isIteratorAtEnd: string_iterator -> bool
 
   (* for testing *)
   val verifyIndex: t -> unit
@@ -3381,6 +3382,9 @@ struct
       moveIteratorLeft (findIdx, idx, leftStrings, rightStrings)
     else
       moveIteratorRight (findIdx, idx, leftStrings, rightStrings)
+
+  fun isIteratorAtEnd {idx = _, leftStrings = _, rightStrings} =
+    List.null rightStrings
 
   fun subIterator (findIdx, {idx, leftStrings, rightStrings}) =
     if findIdx >= idx then
