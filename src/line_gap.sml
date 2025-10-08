@@ -35,12 +35,15 @@ sig
   val lineNumberToIdx: int * t -> int
 
   type string_iterator =
-    {idx: int, leftStrings: string list, rightStrings: string list}
+    { idx: int
+    , leftStrings: string list
+    , rightStrings: string list
+    , textLength: int
+    }
 
   val makeStringIterator: t -> string_iterator
   val moveIteratorToIdx: int * string_iterator -> string_iterator
   val subIterator: int * string_iterator -> char
-  val isIteratorAtEnd: string_iterator -> bool
 
   (* for testing *)
   val verifyIndex: t -> unit
@@ -3346,47 +3349,72 @@ struct
     end
 
   type string_iterator =
-    {idx: int, leftStrings: string list, rightStrings: string list}
+    { idx: int
+    , leftStrings: string list
+    , rightStrings: string list
+    , textLength: int
+    }
 
-  fun makeStringIterator ({idx, leftStrings, rightStrings, ...}: t) =
-    {idx = idx, leftStrings = leftStrings, rightStrings = rightStrings}
+  fun makeStringIterator ({idx, leftStrings, rightStrings, textLength, ...}: t) =
+    { idx = idx
+    , leftStrings = leftStrings
+    , rightStrings = rightStrings
+    , textLength = textLength
+    }
 
-  fun moveIteratorLeft (findIdx, idx, leftStrings, rightStrings) =
+  fun moveIteratorLeft (findIdx, idx, leftStrings, rightStrings, textLength) =
     case leftStrings of
       hd :: tl =>
         let
           val prevIdx = idx - String.size hd
         in
           if findIdx < prevIdx then
-            moveIteratorLeft (findIdx, prevIdx, tl, hd :: rightStrings)
+            moveIteratorLeft
+              (findIdx, prevIdx, tl, hd :: rightStrings, textLength)
           else
-            {idx = idx, leftStrings = leftStrings, rightStrings = rightStrings}
+            { idx = idx
+            , leftStrings = leftStrings
+            , rightStrings = rightStrings
+            , textLength = textLength
+            }
         end
-    | [] => {idx = idx, leftStrings = leftStrings, rightStrings = rightStrings}
+    | [] =>
+        { idx = idx
+        , leftStrings = leftStrings
+        , rightStrings = rightStrings
+        , textLength = textLength
+        }
 
-  fun moveIteratorRight (findIdx, idx, leftStrings, rightStrings) =
+  fun moveIteratorRight (findIdx, idx, leftStrings, rightStrings, textLength) =
     case rightStrings of
       hd :: tl =>
         let
           val nextIdx = idx + String.size hd
         in
           if findIdx > nextIdx then
-            moveIteratorRight (findIdx, nextIdx, hd :: leftStrings, tl)
+            moveIteratorRight
+              (findIdx, nextIdx, hd :: leftStrings, tl, textLength)
           else
-            {idx = idx, leftStrings = leftStrings, rightStrings = rightStrings}
+            { idx = idx
+            , leftStrings = leftStrings
+            , rightStrings = rightStrings
+            , textLength = textLength
+            }
         end
-    | [] => {idx = idx, leftStrings = leftStrings, rightStrings = rightStrings}
+    | [] =>
+        { idx = idx
+        , leftStrings = leftStrings
+        , rightStrings = rightStrings
+        , textLength = textLength
+        }
 
-  fun moveIteratorToIdx (findIdx, {idx, leftStrings, rightStrings}) =
+  fun moveIteratorToIdx (findIdx, {idx, leftStrings, rightStrings, textLength}) =
     if findIdx < idx then
-      moveIteratorLeft (findIdx, idx, leftStrings, rightStrings)
+      moveIteratorLeft (findIdx, idx, leftStrings, rightStrings, textLength)
     else
-      moveIteratorRight (findIdx, idx, leftStrings, rightStrings)
+      moveIteratorRight (findIdx, idx, leftStrings, rightStrings, textLength)
 
-  fun isIteratorAtEnd {idx = _, leftStrings = _, rightStrings} =
-    List.null rightStrings
-
-  fun subIterator (findIdx, {idx, leftStrings, rightStrings}) =
+  fun subIterator (findIdx, {idx, leftStrings, rightStrings, textLength = _}) =
     if findIdx >= idx then
       case rightStrings of
         hd :: tl => subRight (findIdx, idx, hd, tl)
