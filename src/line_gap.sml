@@ -39,6 +39,7 @@ sig
 
   val makeStringIterator: t -> string_iterator
   val moveIteratorToIdx: int * string_iterator -> string_iterator
+  val subIterator: int * string_iterator -> char
 
   (* for testing *)
   val verifyIndex: t -> unit
@@ -3380,6 +3381,16 @@ struct
       moveIteratorLeft (findIdx, idx, leftStrings, rightStrings)
     else
       moveIteratorRight (findIdx, idx, leftStrings, rightStrings)
+
+  fun subIterator (findIdx, {idx, leftStrings, rightStrings}) =
+    if findIdx >= idx then
+      case rightStrings of
+        hd :: tl => subRight (findIdx, idx, hd, tl)
+      | [] => raise Fail "not found"
+    else
+      case leftStrings of
+        hd :: tl => subLeft (findIdx, idx, hd, tl)
+      | [] => raise Fail "not found"
 
   (* TEST CODE *)
   local
