@@ -122,4 +122,32 @@ struct
         in
           LEAF items
         end
+
+  fun splitKeepingRight (idx, level, tree) =
+    case tree of
+      BRANCH nodes =>
+        let
+          val w = Word.>> (idx, level)
+          val w = Word.andb (w, mask)
+          val nodeIdx = Word.toInt w
+
+          val node = Vector.sub (nodes, nodeIdx)
+          val newNode = splitKeepingRight (idx, level - bits, node)
+          val newNode = Vector.fromList [newNode]
+          val newNode = VectorSlice.full newNode
+
+          val newNodes = VectorSlice.slice (nodes, nodeIdx, NONE)
+          val newNodes = VectorSlice.concat [newNode, newNodes]
+        in
+          BRANCH newNodes
+        end
+    | LEAF items =>
+        let
+          val w = Word.andb (idx, mask)
+          val idx = Word.toInt w
+          val items = VectorSlice.slice (items, idx, NONE)
+          val items = VectorSlice.vector items
+        in
+          LEAF items
+        end
 end
