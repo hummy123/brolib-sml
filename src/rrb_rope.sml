@@ -150,4 +150,27 @@ struct
         in
           LEAF items
         end
+
+  fun replaceStartLeaf (newStart, tree) =
+    case tree of
+      BRANCH nodes =>
+        let
+          val startNode = replaceStartLeaf (newStart, Vector.sub (nodes, 0))
+          val nodes = Vector.update (nodes, 0, startNode)
+        in
+          BRANCH nodes
+        end
+    | LEAF _ => LEAF newStart
+
+  fun replaceEndLeaf (newEnd, tree) =
+    case tree of
+      BRANCH nodes =>
+        let
+          val endNode = Vector.sub (nodes, Vector.length nodes - 1)
+          val endNode = replaceEndLeaf (newEnd, endNode)
+          val nodes = Vector.update (nodes, Vector.length nodes - 1, endNode)
+        in
+          BRANCH endNode
+        end
+    | LEAF _ => LEAF newEnd
 end
