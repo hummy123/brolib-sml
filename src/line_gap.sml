@@ -3341,7 +3341,9 @@ struct
         , ...
         } = buffer
     in
-      if findLine - 1 < curLine then
+      if findLine = 0 then
+        0
+      else if findLine - 1 < curLine then
         lineNumberToIdxLeft (findLine, curIdx, curLine, leftStrings, leftLines)
       else
         lineNumberToIdxRight
