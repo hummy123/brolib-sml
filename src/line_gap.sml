@@ -3047,36 +3047,39 @@ struct
         , lineLength
         } = buffer
     in
-      (* we compare current line with searchLine - 1
-       * because if searchLine - 1 is here,
-       * that means we can access the linebreak 
-       * that starts searchLine *)
-      if searchLine - 1 < line then
-        helpGoToLineLeft
-          ( idx
-          , line
-          , searchLine
-          , leftStrings
-          , leftLines
-          , rightStrings
-          , rightLines
-          , textLength
-          , lineLength
-          )
-      else if searchLine - 1 > line then
-        helpGoToLineRight
-          ( idx
-          , line
-          , searchLine
-          , leftStrings
-          , leftLines
-          , rightStrings
-          , rightLines
-          , textLength
-          , lineLength
-          )
+      if searchLine <= 0 then
+        LineGap.goToStart buffer
       else
-        buffer
+        (* we compare current line with searchLine - 1
+         * because if searchLine - 1 is here,
+         * that means we can access the linebreak 
+         * that starts searchLine *)
+        (if searchLine - 1 < line then
+           helpGoToLineLeft
+             ( idx
+             , line
+             , searchLine
+             , leftStrings
+             , leftLines
+             , rightStrings
+             , rightLines
+             , textLength
+             , lineLength
+             )
+         else if searchLine - 1 > line then
+           helpGoToLineRight
+             ( idx
+             , line
+             , searchLine
+             , leftStrings
+             , leftLines
+             , rightStrings
+             , rightLines
+             , textLength
+             , lineLength
+             )
+         else
+           buffer)
     end
 
   fun helpGoToIdxLeft
