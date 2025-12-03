@@ -3048,7 +3048,7 @@ struct
         } = buffer
     in
       if searchLine <= 0 then
-        LineGap.goToStart buffer
+        goToStart buffer
       else
         (* we compare current line with searchLine - 1
          * because if searchLine - 1 is here,
